@@ -128,6 +128,68 @@ function Get-LevelOneHeadingCount {
     return $count
 }
 
+function Test-HighConfidenceMathExpression {
+    param([string]$Content)
+
+    $value = $Content.Trim()
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $false
+    }
+
+    # Keep the detector deliberately conservative. Ordinary identifiers, commands,
+    # paths, and generic function calls such as foo() remain valid code spans.
+    if ($value -match '^[A-Za-z]:[\\/]' -or $value -match '^\\\\') {
+        return $false
+    }
+    if ($value -match '(?i)^GF\s*\(\s*2\s*\^\s*\d+\s*\)$') {
+        return $true
+    }
+    if ($value -match '(?i)^P\s*\([^)]*=.*\|.*\)$') {
+        return $true
+    }
+    if ($value -match '(?i)^(?:alpha|beta|gamma|delta|epsilon|theta|lambda|mu|sigma|tau|phi|psi|omega)\s*\([^)]*\)$') {
+        return $true
+    }
+    if ($value -match '[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9{}]+\s*=') {
+        return $true
+    }
+    if ($value -match '(?<![:A-Za-z0-9_.-])\\(?:alpha|beta|gamma|delta|epsilon|theta|lambda|mu|sigma|tau|phi|psi|omega|frac|sqrt|sum|prod|int|mathrm|mathbf|mathbb|mathcal|left|right|cdot|times|leq|geq|neq|in|notin|subset|subseteq|cup|cap|to|rightarrow|ldots|dots)\b') {
+        return $true
+    }
+    if ($value -match '[α-ωΑ-Ω∑∏√∞≈≠≤≥∈∉⊂⊆∪∩→←↔⇒⇔±×÷·∘⊕⊗∂∇∀∃∅∧∨¬]') {
+        return $true
+    }
+    return $false
+}
+
+function Get-MathCodeSpanIssues {
+    param([string[]]$Lines, [int]$StartIndex)
+
+    $results = [System.Collections.Generic.List[object]]::new()
+    $inFence = $false
+    for ($i = [Math]::Max(0, $StartIndex); $i -lt $Lines.Count; $i++) {
+        $line = $Lines[$i]
+        if ($line -match '^\s*(```|~~~)') {
+            $inFence = -not $inFence
+            continue
+        }
+        if ($inFence -or $line -match '<!--\s*kb-literal-code\s*-->') {
+            continue
+        }
+
+        foreach ($match in [regex]::Matches($line, '(?<!`)`(?<content>[^`\r\n]+)`(?!`)')) {
+            $content = $match.Groups['content'].Value
+            if (Test-HighConfidenceMathExpression -Content $content) {
+                $results.Add([pscustomobject]@{
+                    Content    = $content
+                    LineNumber = $i + 1
+                })
+            }
+        }
+    }
+    return $results
+}
+
 function Test-ExplicitExternalLocalLabel {
     param([string]$Line)
 
@@ -353,6 +415,10 @@ try {
         $headingCount = Get-LevelOneHeadingCount -Lines $lines -StartIndex $bodyStart
         if ($headingCount -ne 1) {
             Add-Issue error 'H1_COUNT_INVALID' $relative "Expected exactly one level-one heading; found $headingCount."
+        }
+
+        foreach ($mathCodeSpan in Get-MathCodeSpanIssues -Lines $lines -StartIndex $bodyStart) {
+            Add-Issue error 'MATH_CODE_SPAN' $relative "Inline code on line $($mathCodeSpan.LineNumber) looks like a mathematical expression; write inline math as `$...`$ or display math as `$$...`$$. Use <!-- kb-literal-code --> on the same line only when literal code is intentional." $mathCodeSpan.Content
         }
 
         $isEntrypoint = $full.Equals($entrypointFull, [System.StringComparison]::OrdinalIgnoreCase)

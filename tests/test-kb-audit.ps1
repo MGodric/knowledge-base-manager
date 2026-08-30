@@ -53,6 +53,8 @@ entrypoint: content/index.md
 # Knowledge Base
 
 - [Unicode entry](knowledge/多言語 note.md)
+
+Valid math: $\mathrm{GF}(2^8)$ and $\tau_x = \alpha x$.
 '@
     Write-Utf8File (Join-Path $validRoot 'content\knowledge\多言語 note.md') @"
 ---
@@ -160,6 +162,59 @@ External local source (outside knowledge base; machine-specific) <!-- kb-externa
     Assert-True ($provenanceCodes -contains 'SOURCE_VERIFIED_DATE_INVALID') 'invalid source verification date should be detected'
     Assert-True ($provenanceCodes -contains 'SOURCE_VERSION_STATE_MISSING') 'missing source revision or version state should be detected'
     Assert-True ($provenanceCodes -notcontains 'ABSOLUTE_LOCAL_LINK') 'explicitly labeled external local links should not be treated as accidental absolute links'
+
+    $mathRoot = Join-Path $testRoot 'math-code-spans'
+    Write-Utf8File (Join-Path $mathRoot 'kb.yaml') @'
+schema_version: 1
+content_dir: content
+entrypoint: content/index.md
+'@
+    Write-Utf8File (Join-Path $mathRoot 'content\index.md') @'
+# Knowledge Base
+
+- [Math misuse](knowledge/math-misuse.md)
+'@
+    Write-Utf8File (Join-Path $mathRoot 'content\knowledge\math-misuse.md') @'
+---
+id: kb-20260831-c0de
+type: concept
+status: draft
+created: 2026-08-31
+updated: 2026-08-31
+---
+# Math misuse
+
+`GF(2^8)`
+
+`tau_x = alpha*x`
+
+`delta(x)`
+
+`P(X=x | accepted)`
+
+`\alpha + \beta`
+
+`x ∈ GF(2^8)`
+
+Benign literal spans: `identifier`, `LITERATURE`, `d-SNI`, `Get-Item`, `C:\temp\file.txt`, and `foo()`.
+
+Intentional literal math-like code: `GF(2^8)` <!-- kb-literal-code -->
+
+```text
+`tau_x = alpha*x`
+```
+'@
+
+    $mathAudit = Invoke-AuditJson -Root $mathRoot
+    $mathIssues = @($mathAudit.Data.issues | Where-Object code -eq 'MATH_CODE_SPAN')
+    Assert-True ($mathAudit.ExitCode -eq 2) "math code-span fixture should exit 2, got $($mathAudit.ExitCode)"
+    Assert-True ($mathIssues.Count -eq 6) "the six high-confidence math code spans should be detected exactly once; found $($mathIssues.Count)"
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match 'GF\(2\^8\)') 'GF(2^8) code-span misuse should be detected'
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match 'tau_x = alpha\*x') 'subscript equation code-span misuse should be detected'
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match 'delta\(x\)') 'mathematical delta function code-span misuse should be detected'
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match 'P\(X=x \| accepted\)') 'conditional probability code-span misuse should be detected'
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match '\\alpha') 'LaTeX command code-span misuse should be detected'
+    Assert-True ((@($mathIssues | ForEach-Object target) -join "`n") -match '∈') 'Unicode math-symbol code-span misuse should be detected'
 
     $escapeRoot = Join-Path $testRoot 'escape'
     Write-Utf8File (Join-Path $escapeRoot 'kb.yaml') @'

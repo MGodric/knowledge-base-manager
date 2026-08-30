@@ -25,8 +25,9 @@ Capture favors speed and information preservation over taxonomy.
 3. Search only enough to avoid an obvious duplicate capture.
 4. Create a readable Markdown file under `content/inbox/` with a date and concise title.
 5. Preserve facts, context, source pointers, uncertainties, and follow-up questions. Label inference as inference.
-6. Add only obvious links; do not invent a final type or broad generalization.
-7. Run the audit and report the new file.
+6. Apply [the Markdown content format](markdown-format.md): write mathematical notation as KaTeX-compatible `$...$` or `$$...$$`, and keep backticks only for literal code or identifiers.
+7. Add only obvious links; do not invent a final type or broad generalization.
+8. Run the audit, resolve every `MATH_CODE_SPAN` issue in the new file, and report the new file.
 
 An inbox entry may omit formal metadata. Never claim that capture has validated or promoted its contents.
 
@@ -41,10 +42,11 @@ Promotion converts a capture into reusable knowledge without losing the original
 5. Choose `type`, destination, filename, and a permanent unique `id` using the knowledge model.
 6. Preserve useful original information while separating facts, sourced claims, project observations, inferences, and open questions.
 7. Add a concise summary, necessary scope and limitations, complete source/reproduction locators, and meaningful links.
-8. Add reciprocal discoverability only where useful; avoid mechanical link duplication.
-9. By default, move the processed inbox item to `content/archive/inbox/<year>/`. If the user wants it retained in place, add a clear pointer to the promoted entry instead.
-10. Finish the coverage ledger: map every material topic to a formal entry, project-summary-only treatment, or deliberate deferral with a reason.
-11. Run the audit. Report the created or merged entry, archived source, modified links, coverage ledger, and unresolved questions. State that structural audit success does not prove semantic completeness.
+8. Apply [the Markdown content format](markdown-format.md): distinguish mathematics from literal code, normalize formulas to KaTeX-compatible TeX, and preserve intentional code spans.
+9. Add reciprocal discoverability only where useful; avoid mechanical link duplication.
+10. By default, move the processed inbox item to `content/archive/inbox/<year>/`. If the user wants it retained in place, add a clear pointer to the promoted entry instead.
+11. Finish the coverage ledger: map every material topic to a formal entry, project-summary-only treatment, or deliberate deferral with a reason.
+12. Run the audit and resolve every `MATH_CODE_SPAN` issue in files changed by the promotion. Report the created or merged entry, archived source, modified links, coverage ledger, and unresolved questions. State that structural audit success does not prove semantic completeness.
 
 Promotion does not itself authorize changing `draft` to `stable`.
 

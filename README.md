@@ -1,6 +1,6 @@
 # Knowledge Base Manager
 
-[简体中文](README.zh-CN.md)
+[简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
 Knowledge Base Manager is a Codex Skill for maintaining a durable,
 human-readable Markdown knowledge base across projects. Markdown remains the
@@ -24,8 +24,9 @@ portable backup and restore workflow.
   knowledge base.
 - Require a complete, reviewable file plan before a portable backup is written.
 - Detect source drift between confirmation and backup publication.
-- Avoid runtime dependencies on Python, PyYAML, Git, databases, Obsidian, or a
-  cloud-provider API.
+- Avoid installed runtime dependencies on Python, PyYAML, Node.js, Git,
+  databases, Obsidian, or a cloud-provider API. The Skill vendors precompiled
+  KaTeX browser assets for offline formula rendering.
 
 ## Cloud synchronization
 
@@ -45,9 +46,14 @@ paths must not pass through directory junctions or symbolic links.
 - Initialize or adopt a Markdown knowledge base with a small `kb.yaml`
   manifest.
 - Capture notes, promote durable entries, maintain links, and archive obsolete
-  material through agent-guided workflows.
+  material through agent-guided workflows, with a canonical KaTeX-compatible
+  Markdown formula format and deterministic checks for likely math-in-code
+  mistakes.
 - Audit manifest structure, entry metadata, internal links, source provenance,
   path containment, duplicate IDs, and synchronization-conflict artifacts.
+- Generate a recursively browsable local HTML reading copy with no web server
+  or user-installed third-party runtime, using SHA-256 incremental rebuilds
+  and bundled offline KaTeX formula rendering.
 - Create a `ReferenceComplete` backup containing the full knowledge base and
   each explicitly registered external source file.
 - Verify backup manifests and SHA-256 checksums.
@@ -66,6 +72,13 @@ paths must not pass through directory junctions or symbolic links.
   Markdown links are used instead.
 - Remote URLs, heading anchors, cloud synchronization state, licensing,
   and secret detection are outside the deterministic audit guarantee.
+- The local static reader is generated output, not a backup. Its first version
+  does not provide search, backlinks, a graph, authentication, deployment, or
+  copying of linked material outside the knowledge base.
+- Formula rendering recognizes Markdown `$...$` and `$$...$$` math. Backtick
+  code spans remain code and are not automatically reclassified as formulas.
+  The auditor catches high-confidence mistakes but cannot infer the semantics
+  of every code span.
 - SHA-256 files provide internal integrity checks, not sender authentication or
   a digital signature.
 - Backup and restore assume that the current user controls the source and
@@ -79,6 +92,7 @@ paths must not pass through directory junctions or symbolic links.
 knowledge-base-manager/     Distributable Codex Skill
   SKILL.md
   agents/openai.yaml
+  assets/katex/             Vendored KaTeX 0.18.1 browser files and MIT license
   references/
   scripts/
 tests/                      Temporary-fixture PowerShell tests
@@ -87,42 +101,6 @@ tests/                      Temporary-fixture PowerShell tests
 Only the `knowledge-base-manager/` directory is the installable Skill. The
 repository-level README and tests are not required at runtime. Local design
 notes live in the ignored `docs/` tree and are never part of the repository.
-
-## Public repository boundary
-
-`.gitignore` is only one part of the privacy boundary:
-
-- Machine-specific configuration uses the stable filename
-  `knowledge-base-manager.local.yaml` and is ignored anywhere in the repository.
-- New private development notes and inventories belong under `.local/`,
-  `.private/`, `private/`, or `docs/`; those directories are ignored as a unit.
-- Generated backup bundles, staging directories, plans, reports, and test
-  artifacts use reserved names covered by `.gitignore`.
-- Files that must be published, especially `knowledge-base-manager/SKILL.md`,
-  `knowledge-base-manager/references/`, and tests, must contain neutral example
-  paths rather than personal paths. Git cannot ignore only selected lines in a
-  tracked file.
-
-The committed `.gitignore` contains only repository-wide conventions. A
-one-machine exception belongs in `.git/info/exclude` after `git init`; that file
-is local to the clone and is never pushed.
-
-Before every public release, inspect the actual tracked set rather than assuming
-that ignore rules were applied:
-
-```powershell
-git status --short --ignored
-git ls-files
-git grep -n -I -E '([A-Za-z]:[\\/]|/Users/|/home/)' -- .
-```
-
-Review every match: source code and tests may contain intentional neutral path
-fixtures, while names, home directories, project roots, backup destinations,
-and unpublished project identifiers require removal. `.gitignore` does not
-affect a file already tracked by Git and can be bypassed with `git add -f`. If a
-private file is accidentally staged before the first push, remove it from the
-index with `git rm --cached -- <path>` and verify `git ls-files` again. If it has
-already been pushed, adding an ignore rule does not remove it from Git history.
 
 ## Installation
 
@@ -174,6 +152,37 @@ Audit an existing knowledge base:
 pwsh -NoProfile -File <skill-directory>/scripts/kb-audit.ps1 `
   -Root <knowledge-base-root>
 ```
+
+Build or incrementally refresh a serverless local HTML reading copy:
+
+```powershell
+pwsh -NoProfile -File <skill-directory>/scripts/kb-build-static.ps1 `
+  -Root <knowledge-base-root> `
+  -Destination <separate-static-output-directory>
+```
+
+The destination must stay outside the live knowledge base. The first build
+generates every Markdown page recursively. Later builds use
+`.kb-static-manifest.json` and SHA-256 to regenerate new, changed, missing, or
+tampered pages while skipping unchanged pages. When a Markdown source is
+deleted, only the corresponding HTML owned by the prior manifest is removed;
+unrelated destination files are preserved. Open the generated entry page
+directly in a browser through `file://`.
+
+To explicitly regenerate every managed page, directory index, and bundled
+KaTeX asset, add `-Force`. Forced mode still preserves unrelated destination
+files and refuses to overwrite paths not owned by the prior manifest:
+
+```powershell
+pwsh -NoProfile -File <skill-directory>/scripts/kb-build-static.ps1 `
+  -Root <knowledge-base-root> `
+  -Destination <separate-static-output-directory> `
+  -Force
+```
+
+Use `$...$` for inline formulas and `$$...$$` for display formulas. The builder
+copies its pinned KaTeX browser resources to `_assets/katex/`; rendering is
+offline and does not invoke Node.js, npm, a CDN, or a local server.
 
 Create a read-only backup plan:
 
@@ -256,33 +265,20 @@ backup plan or bundle without reviewing it separately from this source-code
 repository. The Skill is not a complete secret scanner and does not encrypt
 backups.
 
-## Compatibility policy
+## Compatibility
 
-Skill releases use Semantic Versioning. The live knowledge-base schema in
-`kb.yaml` and the generated backup schema in `backup-manifest.json` are
-versioned independently; both are currently version 1.
-
-- Installing a new Skill release never silently migrates or rewrites a live
-  knowledge base.
-- Additive optional fields may stay within the same schema; unknown fields are
-  preserved. A breaking format change requires a new schema version.
-- Breaking schema changes require a new schema version plus backward reading or
-  an explicit, non-destructive migration path. CI retains supported-version
-  fixtures for audit, backup, and restore.
-
-No migration command exists yet because version 1 is the only defined live
-schema.
+The live knowledge-base schema in `kb.yaml` and backup schema in `backup-manifest.json` are currently version 1. Installing a new Skill release does not automatically rewrite an existing knowledge base; future format changes will include explicit migration guidance.
 
 ## Roadmap
 
 - `Relink` restore with explicit cross-machine project-root mappings.
 - Opt-in `ProjectSnapshot` backups and controlled recursive source collections.
-- A generated HTML/wiki reading layer while Markdown remains authoritative.
+- Optional search, backlinks, graph navigation, and deployment for the static
+  HTML reading layer.
 - Optional signed backup manifests for provenance authentication.
 - Optional handle-relative hardened I/O for hostile shared-directory threat
   models.
 - Cross-platform scripts and CI coverage beyond Windows.
-- Versioned migration fixtures and tooling when schema 2 is proposed.
 
 ## Development and testing
 
@@ -292,11 +288,21 @@ Run the complete current test suite from the repository root:
 pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
 pwsh -NoProfile -File ./tests/test-kb-audit.ps1
 pwsh -NoProfile -File ./tests/test-kb-backup.ps1
+pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
 ```
 
 Tests create isolated temporary knowledge bases, projects, backups, and restore
 destinations. They must not operate on a personal knowledge base.
 
+## Third-party software
+
+The Skill bundles the precompiled browser assets from [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1): JavaScript, CSS, auto-render support, and fonts. They are used only in generated local static HTML to render formulas offline. KaTeX code executes in the reader's browser; the build and runtime do not invoke Node.js, npm, pnpm, a CDN, or a local server.
+
+Upstream release, included-file inventory, release-asset checksum, and provenance are recorded in [THIRD_PARTY.md](knowledge-base-manager/assets/katex/THIRD_PARTY.md). KaTeX is licensed under the MIT License; its bundled license text is at [knowledge-base-manager/assets/katex/LICENSE](knowledge-base-manager/assets/katex/LICENSE). PowerShell 7 is required to run the Skill but is not bundled. Viewing generated HTML requires a normal modern browser, which is also not bundled.
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE). Vendored KaTeX
+browser assets are separately identified under
+`knowledge-base-manager/assets/katex/` with their upstream MIT license and
+release provenance.

@@ -1,6 +1,6 @@
 interface:
   display_name: "Knowledge Base Manager"
-  short_description: "Manage, audit, and port a cross-project Markdown knowledge base"
-  default_prompt: "Use $knowledge-base-manager to organize, audit, or create a verified portable backup or restore of this durable Markdown knowledge without losing sources or limits."
+  short_description: "Manage, browse, audit, and port a cross-project Markdown knowledge base"
+  default_prompt: "Use $knowledge-base-manager to organize, browse as local static HTML, audit, or create a verified portable backup or restore of this durable Markdown knowledge without losing sources or limits."
 policy:
   allow_implicit_invocation: true

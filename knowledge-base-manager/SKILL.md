@@ -1,6 +1,6 @@
 ---
 name: knowledge-base-manager
-description: Manage a human-readable Markdown knowledge base across projects, including portable backup, verification, restore, and cross-machine migration. Use when the user asks to locate, set up, capture, organize, promote, link, rename, search, audit, back up, verify, restore, or migrate durable personal knowledge. Do not use for ordinary project documentation that is meant to stay only in the current project.
+description: Manage a human-readable Markdown knowledge base across projects, including local static-HTML browsing, portable backup, verification, restore, and cross-machine migration. Use when the user asks to locate, set up, capture, organize, promote, link, rename, search, audit, browse as static HTML, back up, verify, restore, or migrate durable personal knowledge. Do not use for ordinary project documentation that is meant to stay only in the current project.
 ---
 
 # Knowledge Base Manager
@@ -52,10 +52,11 @@ If spawning is unavailable or fails, stop before reading sources in detail or wr
 
 - **Initialize** when setting up a new knowledge base or adopting an existing directory. Read [references/initialization.md](references/initialization.md) and [references/safety.md](references/safety.md).
 - **Search** for questions about existing knowledge. This mode is read-only. Read [references/workflows.md](references/workflows.md#search).
-- **Capture** for requests such as “remember this” or “put this in the knowledge base.” Read [references/workflows.md](references/workflows.md#capture) and [references/safety.md](references/safety.md).
-- **Promote** when an inbox note should become durable, reusable knowledge. Read [references/knowledge-model.md](references/knowledge-model.md), [references/workflows.md](references/workflows.md#promote), and [references/safety.md](references/safety.md).
+- **Capture** for requests such as “remember this” or “put this in the knowledge base.” Read [references/workflows.md](references/workflows.md#capture), [references/markdown-format.md](references/markdown-format.md), and [references/safety.md](references/safety.md).
+- **Promote** when an inbox note should become durable, reusable knowledge. Read [references/knowledge-model.md](references/knowledge-model.md), [references/markdown-format.md](references/markdown-format.md), [references/workflows.md](references/workflows.md#promote), and [references/safety.md](references/safety.md).
 - **Link or move** when creating relationships, renaming, or relocating entries. Read [references/knowledge-model.md](references/knowledge-model.md), [references/workflows.md](references/workflows.md#link-move-and-rename), and [references/safety.md](references/safety.md).
 - **Audit** when checking consistency. Read [references/audit-rules.md](references/audit-rules.md) and run `scripts/kb-audit.ps1`.
+- **Build a local static site** when the user wants to browse the knowledge base as recursively generated HTML without a server. Read [references/static-site.md](references/static-site.md) and run `scripts/kb-build-static.ps1`. Use `-Force` only when the user explicitly asks to regenerate every managed page and bundled asset; otherwise retain the default SHA-256 incremental behavior. This writes only to a separate generated-output directory, not to the live knowledge base, so it is not a knowledge-content edit for the delegation gate above.
 - **Backup or restore** when creating, validating, or recovering a portable knowledge-base copy. These bundled scripts require PowerShell 7+ via `pwsh`; Windows PowerShell 5.1 is unsupported. Read [references/backup-restore.md](references/backup-restore.md). For `ReferenceComplete`, show the user the full path-marked plan file list, ask for explicit post-plan confirmation, then invoke `-Execute -ConfirmedPlanDigest <exact digest>`. A generic initial backup request never authorizes execution. If unchanged, no further confirmation is needed; any drift returns a new plan and asks again. Never point backup output at the live knowledge base.
 
 If a request combines modes, search before writing and audit after all writes.
@@ -63,6 +64,7 @@ If a request combines modes, search before writing and audit after all writes.
 ## Shared invariants
 
 - Keep content understandable in a generic Markdown reader. Use standard relative Markdown links, not editor-specific wiki-link syntax as the canonical format.
+- Write mathematics with KaTeX-compatible `$...$` or `$$...$$`; reserve backticks for literal code, commands, identifiers, paths, labels, and strings. Follow [references/markdown-format.md](references/markdown-format.md) for every knowledge-content write and resolve `MATH_CODE_SPAN` audit findings in changed files before completion.
 - Follow the user’s explicit language, then the surrounding note or project convention, then the current conversation and environment. Do not translate existing content unless asked.
 - Preserve sources, scope, uncertainty, and limits. Do not turn a project-specific observation into a general fact without evidence.
 - For project-derived knowledge, record reproducible provenance: project identity, a project-relative locator when available, `verified: YYYY-MM-DD`, and either `revision: <value>` or an honest `version-state: <value>`. An external absolute path is optional; when used, label it as outside the knowledge base and machine-specific and add `<!-- kb-external-local -->` on the same line. Such links never replace the distilled explanation.
@@ -70,7 +72,7 @@ If a request combines modes, search before writing and audit after all writes.
 - Store distilled knowledge, not automatic copies of project trees, secrets, personal data, unpublished material, large results, caches, or generated artifacts.
 - Treat search, explanation, and audit requests as read-only. A request to write authorizes only the smallest relevant knowledge-base changes.
 - Prefer archiving over deletion. Do not silently overwrite, merge, or discard divergent sync copies.
-- Do not add databases, vector indexes, HTML output, Obsidian dependencies, Google Drive APIs, Git automation, or background hooks unless the user separately requests that expansion.
+- Keep generated HTML outside the live knowledge base and treat it as disposable derived output. Do not add databases, vector indexes, Obsidian dependencies, Google Drive APIs, Git automation, or background hooks unless the user separately requests that expansion.
 - Do not follow directory junctions or symbolic links in knowledge-base, registered source, portable-bundle, or write-destination data paths. Require ordinary local paths and locally available files; a development link to the Skill directory itself is not a knowledge-base data path.
 
 ## Search and edits

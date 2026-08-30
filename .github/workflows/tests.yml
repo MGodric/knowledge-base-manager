@@ -35,3 +35,6 @@ jobs:
       - name: Backup and restore tests
         shell: pwsh
         run: ./tests/test-kb-backup.ps1
+      - name: Static-site tests
+        shell: pwsh
+        run: ./tests/test-kb-build-static.ps1

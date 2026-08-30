@@ -25,6 +25,10 @@ Errors indicate that structure, identity, or navigation is unreliable:
 - Invalid entry `type`, `status`, date, or ID shape.
 - Duplicate `id`.
 - Broken internal Markdown link.
+- A high-confidence mathematical expression is written as an inline code span
+  instead of `$...$` or `$$...$$` (`MATH_CODE_SPAN`). Put
+  `<!-- kb-literal-code -->` on the same line only when the span is genuinely
+  literal code.
 
 The entrypoint must have exactly one level-one heading but may omit formal metadata. Files under `inbox/` and `archive/` are retained material and are not required to satisfy the formal-entry schema.
 
@@ -55,4 +59,9 @@ An audit request is read-only. When the user asks to repair findings:
 4. Preserve IDs on moves and preserve both sides of unresolved conflicts.
 5. Run the full audit again and report remaining warnings.
 
-The script validates ordinary inline Markdown links. It intentionally does not perform network checks, validate remote URL availability, parse editor-specific wiki-link syntax, or prove that a link’s anchor heading exists.
+The script validates ordinary inline Markdown links and detects selected
+high-confidence math-in-code patterns. It intentionally does not perform
+network checks, validate remote URL availability, parse editor-specific
+wiki-link syntax, prove that a link’s anchor heading exists, or infer the
+semantics of every code span. A clean audit does not prove that every formula
+was classified correctly.

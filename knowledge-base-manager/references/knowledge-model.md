@@ -98,6 +98,10 @@ Adapt by type:
 - `project`: scope, external location hints, and knowledge outputs.
 - `map`: curated groups of links with explanatory context, not copied entry bodies.
 
+Before writing body content, follow [the Markdown content format](markdown-format.md).
+Mathematics uses KaTeX-compatible `$...$` or `$$...$$`; backticks retain their
+ordinary Markdown meaning of literal code.
+
 ## Sources and reproduction
 
 Project-derived formal entries should make every material claim traceable without copying source code, datasets, or bulky results into the knowledge base. Use a language-appropriate source/reproduction section. Every source item must include:

@@ -1,0 +1,40 @@
+# -----------------------------------------------------------------------------
+# Machine-local configuration and private development state
+# -----------------------------------------------------------------------------
+
+# Canonical per-machine Knowledge Base Manager configuration. The normal file
+# lives under CODEX_HOME, but ignore accidental copies anywhere in this repo.
+**/knowledge-base-manager.local.yaml
+
+# Put any new private notes, local inventories, or publication scratch data in
+# one of these directories instead of inventing another untracked filename.
+/.local/
+/.private/
+/private/
+/docs/
+
+# -----------------------------------------------------------------------------
+# Generated knowledge bases, backup plans, bundles, and restore staging
+# -----------------------------------------------------------------------------
+
+/backups/
+/artifacts/
+/test-results/
+**/portable-kb/
+**/.incomplete-*/
+**/.restore-incomplete-*/
+**/*.backup-plan.json
+**/*.backup-report.json
+
+# -----------------------------------------------------------------------------
+# Editor and operating-system state
+# -----------------------------------------------------------------------------
+
+/.vscode/
+/.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log

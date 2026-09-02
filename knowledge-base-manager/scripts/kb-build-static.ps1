@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 
 # Bump either value when generated page markup or its common template changes.
 $generatorVersion = '1.1.0'
-$templateVersion = '2'
+$templateVersion = '3'
 $manifestName = '.kb-static-manifest.json'
 $katexAssetVersion = '0.18.1'
 
@@ -180,7 +180,19 @@ function New-KbStaticHtmlDocument {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{0}</title>
-<style>body{{max-width:920px;margin:2rem auto;padding:0 1rem;font:16px/1.65 system-ui,sans-serif;color:#1f2937}}a{{color:#0f5da8}}pre{{overflow:auto;padding:1rem;background:#f3f4f6}}code{{font-family:ui-monospace,monospace}}table{{border-collapse:collapse}}th,td{{border:1px solid #d1d5db;padding:.4rem .6rem}}</style>
+<style>
+body{{max-width:920px;margin:2rem auto;padding:0 1rem;font:16px/1.65 system-ui,sans-serif;color:#1f2937;background:#fff}}
+a{{color:#0f5da8}} a:hover{{color:#0a477f}}
+pre{{overflow:auto;padding:1rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.35rem}} pre code{{padding:0;background:transparent;border:0}}
+code{{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f3f4f6;padding:.12em .28em;border-radius:.2rem}}
+table{{display:block;max-width:100%;width:max-content;overflow-x:auto;border-collapse:collapse;margin:1rem 0}} th,td{{border:1px solid #d1d5db;padding:.45rem .65rem;text-align:left;vertical-align:top}} th{{background:#eef2f7;font-weight:650}} tr:nth-child(even) td{{background:#f9fafb}}
+ul,ol{{padding-left:1.6rem}} li+li{{margin-top:.2rem}} li>ul,li>ol{{margin:.2rem 0 .1rem}}
+ul.task-list,ul.contains-task-list{{list-style:none;padding-left:.25rem}} .task-list-item{{display:flex;align-items:baseline;gap:.45rem}} .task-list-item>input[type="checkbox"]{{margin:0;flex:0 0 auto}}
+blockquote{{margin:1rem 0;padding:.15rem 1rem;border-left:.28rem solid #93c5fd;background:#eff6ff;color:#334155}} blockquote>:first-child{{margin-top:.55rem}} blockquote>:last-child{{margin-bottom:.55rem}}
+.markdown-alert{{margin:1rem 0;padding:.1rem 1rem;border-left:.28rem solid #60a5fa;background:#eff6ff}} .markdown-alert-title{{font-weight:700}} .markdown-alert-warning{{border-color:#f59e0b;background:#fffbeb}} .markdown-alert-important{{border-color:#a855f7;background:#faf5ff}} .markdown-alert-caution{{border-color:#ef4444;background:#fef2f2}}
+.footnotes{{font-size:.92em;border-top:1px solid #d1d5db;margin-top:2rem}} .footnote-ref{{text-decoration:none}}
+hr{{border:0;border-top:1px solid #d1d5db;margin:2rem 0}} del{{color:#6b7280}} img{{max-width:100%;height:auto}}
+</style>
 <link rel="stylesheet" href="{2}/katex.min.css">
 <script defer src="{2}/katex.min.js"></script>
 <script defer src="{2}/contrib/auto-render.min.js"></script>

@@ -27,6 +27,35 @@ The designated editor must:
 
 Because agents share the same filesystem, the editor changes the real target files. The main agent must not recreate the same edits.
 
+## Additional independent review for Project Synthesis
+
+For a Project Synthesis, the main agent re-reads the editor's actual changes
+and performs the basic independent acceptance check already required above. A
+low-risk synthesis needs no second reviewer.
+
+Request one additional read-only independent reviewer for material technical
+conclusions, root-cause claims, substantive SOP changes, decisions, conflicts,
+important inferences promoted from observations, or safety, legal, medical,
+financial, or administrative-eligibility content. This reviewer is not a
+designated editor: it must not edit files, expand the approved sources or
+permissions, or delegate. It reviews the stated scope, evidence boundary,
+provenance, coverage ledger, and actual written result, then returns only
+`PASS`, `FIX`, or `BLOCKED` with concise reasons.
+
+The original designated editor addresses `FIX`; the main agent re-reads the
+repair and performs final acceptance. If independent review is unavailable and
+the main agent cannot reliably perform the needed check, return `BLOCKED` and
+ask the user for direction. Keep the existing designated-editor recursion guard
+and model-routing rules unchanged.
+
+For a sustainable synthesis batch, assign reviewers by distinct substantive
+risk clusters, not one reviewer per ordinary entry. The primary agent handles
+the basic check for ordinary entries. Add an independent reviewer only when a
+cluster contains a material technical conclusion, root-cause claim,
+substantive SOP change, decision, conflict, important inference, or high-risk
+subject; separate reviewers are justified only for materially different such
+clusters.
+
 ## Model and reasoning route
 
 Choose the editor model by the delegated task, not only by the main model.
@@ -70,6 +99,9 @@ Prefer an isolated spawn with no inherited turns and include only:
 - operation and acceptance criteria;
 - exact source files or a concise factual payload;
 - for semantic work, permission to determine entry decomposition after source inventory rather than a parent-imposed count;
+- for a synthesis batch, the one-time metadata manifest fields, top-*k*
+  duplicate-body limit with ambiguity-only expansion, and each parent page that
+  may be updated once;
 - language and local note conventions;
 - allowed and forbidden paths;
 - required provenance fields (including literal `verified` and revision/version-state tokens), coverage ledger, audit command, and response fields;

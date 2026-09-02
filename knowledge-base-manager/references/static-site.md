@@ -61,6 +61,11 @@ full regeneration from a normal incremental run.
 
 The manifest and generated HTML are cache-like output, not knowledge content or a backup. Rebuild them from Markdown after loss. A successful incremental result does not replace `kb-audit.ps1`; audit the knowledge base separately when link or content correctness matters.
 
+For ordinary accepted content updates, build once after the batch audit and
+acceptance. A second idempotence build is reserved for a generator change,
+release acceptance, or a concrete suspicion of non-determinism; it is not a
+normal per-batch step.
+
 ## Current boundary
 
 This first local-reading implementation provides recursive page generation, ordinary relative-page navigation, local styling, offline KaTeX formulas, and hash-based incremental rebuilds. It does not provide a local HTTP server, full-text search, backlinks, a relationship graph, authentication, public deployment, or copying of linked external project material.

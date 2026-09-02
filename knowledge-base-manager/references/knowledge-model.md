@@ -38,7 +38,7 @@ content/
 ```
 
 - `inbox/`: low-friction, unpromoted captures.
-- `maps/`: curated navigation or map-of-content pages.
+- `maps/`: human-maintained curated navigation or map-of-content pages.
 - `knowledge/`: reusable concepts, methods, observations, and explanations.
 - `sources/`: notes about papers, books, webpages, or other evidence.
 - `decisions/`: choices, alternatives, reasoning, consequences, and review conditions.
@@ -46,7 +46,7 @@ content/
 - `assets/`: images and attachments required by entries.
 - `archive/`: superseded or processed material retained for recovery and history.
 
-Create shallow topic subdirectories only after volume justifies them. Use links and maps for cross-topic relationships rather than forcing every entry into a single subject hierarchy.
+Create shallow topic subdirectories only after volume justifies them. Use links and maps for cross-topic relationships rather than forcing every entry into a single subject hierarchy. The root entrypoint links only stable project pages and human-maintained topic maps; it must not become a generated aggregation of leaf entries. Do not define topic-map thresholds, sharding, queues, or automatic aggregation. A future map proposal may be made only after unaggregated pages accumulate and the user explicitly asks for a manual batch proposal or operation.
 
 ## Formal entry metadata
 
@@ -97,6 +97,25 @@ Adapt by type:
 - `decision`: context, decision, alternatives, rationale, consequences, and review trigger.
 - `project`: scope, external location hints, and knowledge outputs.
 - `map`: curated groups of links with explanatory context, not copied entry bodies.
+
+Adapt the representation to the entry's information shape; these structures
+are optional, not boilerplate. A project can use a status or asset matrix. A
+method can pair inputs and outputs with ordered steps and explicit stop or
+failure conditions. A decision can compare options, rationale, tradeoffs, and
+review triggers. A source can use an evidence table that distinguishes what it
+supports from its limits. A map can group links under short explanatory labels.
+Use prose to preserve causal explanation and uncertainty around those
+structures. “Distilled” removes duplicated or tree-copied content; it does not
+suppress explanation needed to understand why, when, or with what limits an
+entry applies.
+
+For a new formal entry, require one reasonable inbound link from a parent
+project page or topic map: the parent links to the new entry. Do not require a
+reciprocal child-to-parent link or automatically add a `Related entries`
+section, sibling links, or additional parents. Add them only when the user
+explicitly requests a meaningful relationship; a formal entry otherwise
+maintains only its supporting source provenance and necessary
+scope/limitations.
 
 Before writing body content, follow [the Markdown content format](markdown-format.md).
 Mathematics uses KaTeX-compatible `$...$` or `$$...$$`; backticks retain their

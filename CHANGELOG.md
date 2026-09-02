@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 2026-09-02
+
+- Added explicit Project Synthesis v1 with bounded source and evidence handling, one designated editor, a coverage ledger, and independent review for material or high-risk conclusions.
+- Added a tested renderer-compatible structured Markdown authoring profile, including representation choices without fixed table or template quotas.
+- Added static HTML template v3 styling and behavior tests for tables, task lists, nested lists, blockquotes and GitHub alerts, footnotes, code, and link rewriting.
+
 ## 0.1.1 - 2026-08-31
 
 - Added recursive local static HTML generation with SHA-256 incremental rebuilds and generated directory indexes.

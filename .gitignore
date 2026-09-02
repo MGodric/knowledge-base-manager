@@ -2,6 +2,9 @@
 # Machine-local configuration and private development state
 # -----------------------------------------------------------------------------
 
+# Machine/session-local agent instructions; do not publicly track this file.
+/AGENTS.md
+
 # Canonical per-machine Knowledge Base Manager configuration. The normal file
 # lives under CODEX_HOME, but ignore accidental copies anywhere in this repo.
 **/knowledge-base-manager.local.yaml

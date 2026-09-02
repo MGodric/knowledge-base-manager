@@ -79,6 +79,29 @@ $$
 R_K = ARK_{K_1} \circ SR
 $$
 
+| 项目 | 状态 |
+| :--- | ---: |
+| [返回首页](../index.md) | ~~旧状态~~ |
+
+- [x] 已检查的 gate
+- [ ] 待检查的 gate
+
+1. 外层步骤
+   - 内层条件
+
+> 边界：这是一项静态阅读器可见的警告。
+
+> [!NOTE]
+> 这是一项 renderer profile 已验证的提示。
+
+保留可追溯说明[^render-profile]。
+
+[^render-profile]: 脚注保留在静态页面中。
+
+```powershell
+Get-Item
+```
+
 ## 小节
 
 [返回](../index.md)
@@ -91,6 +114,7 @@ $$
     Assert-True ((Test-Path -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -PathType Leaf)) 'destination must contain its fixed machine-readable manifest'
     $manifest = Get-Content -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.schema -eq 'knowledge-base-static-site' -and $manifest.schema_version -eq 1) 'manifest must expose a stable schema/version'
+    Assert-True ($manifest.template_version -eq '3') 'manifest must identify the structured-Markdown CSS template version'
     Assert-True ($manifest.entry_output_path -eq 'index.html' -and $first.Data.entry_page -eq (Join-Path $destination 'index.html')) 'result and manifest must identify the generated entry page'
     Assert-True (@($manifest.pages).Count -eq 2) 'manifest must record every Markdown source recursively'
     Assert-True ($manifest.katex.asset_version -eq '0.18.1' -and @($manifest.katex.assets).Count -eq 4) 'manifest must record the fixed KaTeX version and every copied asset'
@@ -104,8 +128,20 @@ $$
     Assert-True ($indexHtml -match '(?i)^<!doctype html>' -and $indexHtml -match '<html') 'output must be a complete directly browsable HTML page'
     Assert-True ($indexHtml -match 'href="[^"]+\.html#' -and $indexHtml -notmatch '\.md(?:[?#\"])') 'ordinary relative Markdown links must be rewritten to HTML links'
     Assert-True ($indexHtml -match 'href="[^"]+index\.html"') 'directory links must resolve to a generated directory index'
-    Assert-True ($entryHtml -match '<h1[^>]*>中文条目</h1>' -and $entryHtml -notmatch 'kb-20260831-entry' -and $entryHtml -notmatch '<hr') 'opening YAML front matter must not be rendered'
+    Assert-True ($entryHtml -match '<h1[^>]*>中文条目</h1>' -and $entryHtml -notmatch 'kb-20260831-entry') 'opening YAML front matter must not be rendered'
     Assert-True ($entryHtml -match 'href="\.\./index\.html"') 'nested relative Markdown links must be rewritten'
+    Assert-True ($entryHtml -match '(?is)<table.*?<thead>.*?<th[^>]*style="text-align: left;"[^>]*>项目</th>.*?<th[^>]*style="text-align: right;"[^>]*>状态</th>.*?<tbody>.*?</table>') 'aligned Markdown tables must render as semantic table HTML'
+    Assert-True ($entryHtml -match '(?is)<table.*?href="\.\./index\.html".*?</table>' -and $entryHtml -notmatch '(?is)<table.*?\.md.*?</table>') 'inline internal Markdown links inside tables must be rewritten to HTML links'
+    Assert-True ($entryHtml -match '(?is)<ul class="contains-task-list">.*?<input[^>]*disabled="disabled"[^>]*type="checkbox".*?</ul>') 'task lists must render as disabled semantic checklists'
+    Assert-True ($entryHtml -match '(?is)<ol>.*?<ul>.*?</ul>.*?</ol>') 'nested lists must retain their semantic nesting'
+    Assert-True ($entryHtml -match '(?is)<blockquote>.*?静态阅读器可见的警告.*?</blockquote>') 'blockquotes must render as semantic blockquote HTML'
+    Assert-True ($entryHtml -match '(?is)<div class="markdown-alert markdown-alert-note">.*?<p class="markdown-alert-title"[^>]*>.*?Note</p>.*?renderer profile 已验证的提示.*?</div>') 'GitHub alerts must render as semantic markdown-alert HTML'
+    Assert-True ($entryHtml -match '<del>旧状态</del>') 'strikethrough must render as semantic del HTML'
+    Assert-True ($entryHtml -match '(?is)<a[^>]*class="footnote-ref"[^>]*><sup>1</sup></a>.*?<div class="footnotes">') 'footnotes must render with semantic reference and footnote sections'
+    Assert-True ($entryHtml -match '(?is)<pre><code class="language-powershell">Get-Item.*?</code></pre>') 'fenced code must render as a language-marked code block'
+    foreach ($cssToken in @('table{{display:block', 'th,td{{border:', 'ul.contains-task-list', '.task-list-item', 'blockquote{{', '.markdown-alert{{', '.markdown-alert-title{{', '.footnotes{{', 'hr{{', 'del{{', 'pre{{', 'img{{max-width:100%')) {
+        Assert-True ($entryHtml.Contains($cssToken.Replace('{{', '{'))) "static template must contain structured-Markdown CSS token: $cssToken"
+    }
     Assert-True ($indexHtml -match 'href="\./_assets/katex/katex\.min\.css"' -and $indexHtml -match 'src="\./_assets/katex/katex\.min\.js"') 'root pages must use directly browsable relative KaTeX paths'
     Assert-True ($entryHtml -match 'href="\.\./_assets/katex/katex\.min\.css"' -and $entryHtml -match 'src="\.\./_assets/katex/contrib/auto-render\.min\.js"') 'nested pages must use depth-correct relative KaTeX paths'
     Assert-True ($entryHtml -match 'class="math"' -and $entryHtml.Contains('\(') -and $entryHtml.Contains('\[')) 'PowerShell Markdown math markers must remain available to KaTeX auto-render'

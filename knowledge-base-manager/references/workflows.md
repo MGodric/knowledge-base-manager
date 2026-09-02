@@ -2,6 +2,19 @@
 
 Use only the section needed for the current operation. Search first when another mode could create duplicates.
 
+## Project Synthesis routing
+
+Capture never triggers Project Synthesis. Ordinary promotion of one inbox item
+continues to use the Promote workflow below. Read
+[project-synthesis.md](project-synthesis.md) only when the user explicitly
+requests Project Synthesis, a formal multi-source or cross-project
+consolidation, or equivalent complete synthesis protocol.
+
+For an explicitly authorized sustainable batch, use the one-time metadata
+manifest and top-*k* ambiguity protocol in
+[project-synthesis.md](project-synthesis.md#sustainable-batch-execution). It
+does not create topic maps, queues, or background aggregation.
+
 ## Search
 
 Search is read-only unless the user separately asks for a change.
@@ -43,7 +56,10 @@ Promotion converts a capture into reusable knowledge without losing the original
 6. Preserve useful original information while separating facts, sourced claims, project observations, inferences, and open questions.
 7. Add a concise summary, necessary scope and limitations, complete source/reproduction locators, and meaningful links.
 8. Apply [the Markdown content format](markdown-format.md): distinguish mathematics from literal code, normalize formulas to KaTeX-compatible TeX, and preserve intentional code spans.
-9. Add reciprocal discoverability only where useful; avoid mechanical link duplication.
+9. Give a new formal entry one reasonable inbound link from a parent project
+   page or topic map; the parent links to the entry. Do not require the child
+   to link back or mechanically add sibling, related-entry, or extra-parent
+   links; keep source provenance on the entry itself.
 10. By default, move the processed inbox item to `content/archive/inbox/<year>/`. If the user wants it retained in place, add a clear pointer to the promoted entry instead.
 11. Finish the coverage ledger: map every material topic to a formal entry, project-summary-only treatment, or deliberate deferral with a reason.
 12. Run the audit and resolve every `MATH_CODE_SPAN` issue in files changed by the promotion. Report the created or merged entry, archived source, modified links, coverage ledger, and unresolved questions. State that structural audit success does not prove semantic completeness.

@@ -41,7 +41,20 @@ Warnings require human judgment and do not produce a failing exit code:
 - An absolute local link lacks an explicit outside-knowledge-base, machine-specific label.
 - A labeled external local source lacks a valid `verified: YYYY-MM-DD` token.
 - A labeled external local source lacks either `revision: <value>` or `version-state: <value>`.
-- An internal link uses backslashes, a directory target, or path casing inconsistent with the stored file.
+- An internal link uses backslashes, an unsupported directory target, or path casing inconsistent with the stored file.
+
+The configured homepage may link to existing top-level `projects`, `maps`,
+`knowledge`, `sources`, `decisions`, `inbox`, `archive`, or `assets` directories
+under `content_dir` as auxiliary type inventories. These ordinary relative
+links are permitted only outside the [explicit collection region](navigation.md).
+They do not count as inbound links to entries. Directory links in other pages,
+inside collection regions, or to other/nested directories still produce
+`DIRECTORY_LINK`. Images, portable-source links, root-relative links, backslash
+paths, and links with queries or fragments do not receive this exception.
+Malformed or repeated collection delimiters disable the exception for the
+homepage; examples inside fenced code do not declare a region. Missing or
+escaping targets and reparse points retain their existing checks. This does
+not replace the static builder's full collection-graph validation.
 
 An explicitly labeled external local source locator with `<!-- kb-external-local -->`, valid verification date, and revision/version state is allowed and produces no warning. The link is still non-portable; the auditor does not require that another machine can open it.
 - A `<!-- kb-portable-source -->` link is allowed only in a bundle/restored KB that declares a contained `external_dir`; it must resolve inside that directory. Ordinary relative links remain confined to `content_dir`.

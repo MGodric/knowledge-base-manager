@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-09-08
+
+- Added a light-blue static reading theme with a distinct article panel, responsive article outline, collapsible details, and code-copy buttons with a manual-copy fallback.
+- Added explicit project/topic collection regions for semantic breadcrumbs and multiple collection entrances, plus auxiliary type indexes; navigation changes invalidate affected static output without moving Markdown sources.
+- Exempted ordinary homepage links to existing standard type directories outside collection regions from directory-link warnings, while preserving warnings elsewhere and orphan-entry checks.
+- Added CI coverage for curated navigation and the generated page's code-copy and article-outline behavior. Node.js is used only for development tests, not by the Skill runtime.
+
 ## 0.1.2 - 2026-09-02
 
 - Added explicit Project Synthesis v1 with bounded source and evidence handling, one designated editor, a coverage ledger, and independent review for material or high-risk conclusions.

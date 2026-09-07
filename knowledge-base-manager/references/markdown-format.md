@@ -43,6 +43,13 @@ horizontal rules, footnotes, and the current math delimiters.
 
 ### Conditional features
 
+- Optional disclosures may use plain `<details>` and `<summary>` tags. Put
+  each tag on its own line and leave a blank line after `</summary>` and
+  before `</details>` so Markdown paragraphs, links and fenced code inside
+  render normally. Keep the summary descriptive and essential conclusions
+  and limitations visible outside the disclosure. Do not add inline styles,
+  event handlers or scripts. This is a narrow raw-HTML exception; readers
+  that strip HTML may show the body expanded or omit the disclosure UI.
 - GitHub alerts are presentation-supported after the static builder's bundled
   CSS is present; keep their warning/boundary meaning understandable as plain
   Markdown too.
@@ -55,9 +62,12 @@ horizontal rules, footnotes, and the current math delimiters.
 
 ### Unsupported or restricted features
 
-Do not use raw HTML (`details`, forms, `script`, `style`, `iframe`, or similar)
-as canonical knowledge content. The required KB marker comments such as
-`<!-- kb-external-local -->` and `<!-- kb-literal-code -->` remain allowed.
+Do not use other raw HTML (forms, `script`, `style`, `iframe`, or similar)
+as canonical knowledge content. Plain `details`/`summary` as described above
+and the required KB marker comments such as
+`<!-- kb-external-local -->` and `<!-- kb-literal-code -->` remain allowed,
+as do the paired `kb-nav:children:start` / `kb-nav:children:end` comments
+specified in [reading navigation](navigation.md).
 Definition lists, Mermaid and other non-native diagrams, Obsidian wiki links,
 reference-style internal links before the builder can rewrite them, and
 interactive forms are not supported canonical features.

@@ -76,6 +76,86 @@ External local source (outside knowledge base; machine-specific) <!-- kb-externa
     Assert-True ($valid.Data.errors -eq 0) 'valid fixture should have no errors'
     Assert-True ($valid.Data.warnings -eq 0) 'a complete labeled external local source should not produce a warning'
 
+    # The configured homepage may expose real top-level type inventories without
+    # turning directory links in other contexts into collection membership.
+    $directoryRoot = Join-Path $testRoot 'homepage-directories'
+    Write-Utf8File (Join-Path $directoryRoot 'kb.yaml') "schema_version: 1`ncontent_dir: content`nentrypoint: content/home/start.md`n"
+    $typeNames = @('projects','maps','knowledge','sources','decisions','inbox','archive','assets')
+    foreach ($name in $typeNames) { New-Item -ItemType Directory -Path (Join-Path $directoryRoot "content/$name") -Force | Out-Null }
+    $homepagePath = Join-Path $directoryRoot 'content/home/start.md'
+    $typeLinks = ($typeNames | ForEach-Object { "- [Type](../$_/)" }) -join "`n"
+    $homepageText = "# Home`n`n$typeLinks`n"
+    Write-Utf8File $homepagePath $homepageText
+    $allowedDirectories = Invoke-AuditJson $directoryRoot
+    Assert-True ($allowedDirectories.ExitCode -eq 0 -and $allowedDirectories.Data.warnings -eq 0) 'existing type directories outside collections on a nested configured homepage are permitted'
+
+    New-Item -ItemType Directory -Path (Join-Path $directoryRoot 'content/misc') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $directoryRoot 'content/knowledge/sub') -Force | Out-Null
+    Write-Utf8File (Join-Path $directoryRoot 'content/knowledge/uncollected.md') @'
+---
+id: kb-20260908-a123
+type: concept
+status: draft
+created: 2026-09-08
+updated: 2026-09-08
+---
+# Uncollected
+'@
+    Write-Utf8File (Join-Path $directoryRoot 'content/inbox/note.md') "# Inbox note`n[Directory](../knowledge/)`n"
+    $restrictedLinks = @'
+
+<!-- kb-nav:children:start -->
+- [Not a collection child](../knowledge/)
+<!-- kb-nav:children:end -->
+
+- [Unknown directory](../misc/)
+- [Subdirectory](../knowledge/sub/)
+- [Query](../projects/?q=1)
+- [Fragment](../projects/#part)
+- [Root path](/projects/)
+- ![Image](../assets/)
+'@
+    Write-Utf8File $homepagePath ($homepageText + $restrictedLinks)
+    $restrictedDirectories = Invoke-AuditJson $directoryRoot
+    $directoryIssues = @($restrictedDirectories.Data.issues | Where-Object code -eq 'DIRECTORY_LINK')
+    Assert-True ($restrictedDirectories.Data.errors -eq 0 -and $directoryIssues.Count -eq 8) 'collection, other-page, unknown, nested, query, fragment, root-path and image directories retain warnings'
+    Assert-True (@($directoryIssues | Where-Object file -eq 'inbox/note.md').Count -eq 1) 'a non-homepage directory link is never exempt'
+    Assert-True (@($restrictedDirectories.Data.issues | Where-Object { $_.code -eq 'ORPHAN_ENTRY' -and $_.file -eq 'knowledge/uncollected.md' }).Count -eq 1) 'homepage type-directory links must not hide orphan entries'
+
+    # Markers in fenced examples do not hide a later real homepage type link.
+    $fencedExample = @'
+# Home
+
+````markdown
+<!-- kb-nav:children:start -->
+```
+[Example only](../misc/)
+<!-- kb-nav:children:end -->
+````
+
+[Real type link](../knowledge/)
+'@
+    Write-Utf8File $homepagePath $fencedExample
+    $fencedDirectories = Invoke-AuditJson $directoryRoot
+    Assert-True (@($fencedDirectories.Data.issues | Where-Object { $_.file -eq 'home/start.md' -and $_.code -eq 'DIRECTORY_LINK' }).Count -eq 0) 'nested fence-like text and sample markers must not change the real link context'
+
+    foreach ($badMarkers in @(
+        "<!-- kb-nav:children:start -->`n",
+        "<!-- kb-nav:children:end -->`n",
+        "<!-- kb-nav:children:start -->`n<!-- kb-nav:children:start -->`n<!-- kb-nav:children:end -->`n<!-- kb-nav:children:end -->`n",
+        "<!-- kb-nav:children:start -->`n<!-- kb-nav:children:end -->`n<!-- kb-nav:children:start -->`n<!-- kb-nav:children:end -->`n"
+    )) {
+        Write-Utf8File $homepagePath ("# Home`n[Before](../knowledge/)`n" + $badMarkers + "`n[After](../projects/)`n")
+        $malformedDirectories = Invoke-AuditJson $directoryRoot
+        Assert-True (@($malformedDirectories.Data.issues | Where-Object { $_.file -eq 'home/start.md' -and $_.code -eq 'DIRECTORY_LINK' }).Count -eq 2) 'malformed declarations disable the homepage exception conservatively'
+    }
+    # Existence checks run before the exception, including recognized type names.
+    Remove-Item -LiteralPath (Join-Path $directoryRoot 'content/maps')
+    Write-Utf8File $homepagePath "# Home`n[Missing type](../maps/)`n[Outside](../../outside/)`n"
+    $missingDirectories = Invoke-AuditJson $directoryRoot
+    Assert-True (@($missingDirectories.Data.issues | Where-Object code -eq 'LINK_BROKEN').Count -eq 1) 'missing known type directory remains a broken link'
+    Assert-True (@($missingDirectories.Data.issues | Where-Object code -eq 'LINK_ESCAPES_CONTENT').Count -eq 1) 'escaping directory remains an error'
+
     $invalidRoot = Join-Path $testRoot 'invalid'
     Write-Utf8File (Join-Path $invalidRoot 'kb.yaml') @'
 schema_version: 1

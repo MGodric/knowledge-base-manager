@@ -38,3 +38,15 @@ jobs:
       - name: Static-site tests
         shell: pwsh
         run: ./tests/test-kb-build-static.ps1
+      - name: Static navigation tests
+        shell: pwsh
+        run: ./tests/test-kb-static-navigation.ps1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Code-copy behavior tests
+        shell: pwsh
+        run: node ./tests/test-kb-static-copy.cjs
+      - name: Article-outline behavior tests
+        shell: pwsh
+        run: node ./tests/test-kb-static-toc.cjs

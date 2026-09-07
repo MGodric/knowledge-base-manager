@@ -57,7 +57,8 @@ Promotion converts a capture into reusable knowledge without losing the original
 7. Add a concise summary, necessary scope and limitations, complete source/reproduction locators, and meaningful links.
 8. Apply [the Markdown content format](markdown-format.md): distinguish mathematics from literal code, normalize formulas to KaTeX-compatible TeX, and preserve intentional code spans.
 9. Give a new formal entry one reasonable inbound link from a parent project
-   page or topic map; the parent links to the entry. Do not require the child
+   page or topic map, inside its [explicit collection region](navigation.md).
+   Do not require the child
    to link back or mechanically add sibling, related-entry, or extra-parent
    links; keep source provenance on the entry itself.
 10. By default, move the processed inbox item to `content/archive/inbox/<year>/`. If the user wants it retained in place, add a clear pointer to the promoted entry instead.

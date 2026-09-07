@@ -12,7 +12,7 @@ Knowledge Base Manager 是一个 Codex Skill，用于在多个项目之间维护
 - 使用规范的 KaTeX 兼容 Markdown 捕获笔记、提升持久条目、维护链接和归档旧内容。
 - **仅在明确请求时**运行 Project Synthesis 来协调多个来源或项目，并保留可审计的证据边界和审阅记录。
 - 审计 manifest、元数据、链接、来源信息、路径范围、重复 ID 及可能的同步冲突痕迹。
-- 生成可离线递归浏览的静态 HTML 阅读副本，并以随附 KaTeX 渲染公式；无需 Web 服务器。
+- 生成可离线递归浏览的静态 HTML 阅读副本，内嵌浅蓝阅读主题，支持项目／主题收录面包屑、辅助类型一览、响应式文章目录、KaTeX 公式、可选折叠说明与代码复制（失败时提示手动复制）；无需 Web 服务器。
 - 创建和验证 `ReferenceComplete` 备份，其中包含知识库及显式登记的库外来源文件；可将其恢复为 `Portable` 知识库。
 
 ## 要求
@@ -74,6 +74,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 - [Markdown 格式](knowledge-base-manager/references/markdown-format.md)
 - [审计规则](knowledge-base-manager/references/audit-rules.md)
 - [静态站点](knowledge-base-manager/references/static-site.md)
+- [阅读导航与收录约定](knowledge-base-manager/references/navigation.md)
 - [备份与恢复](knowledge-base-manager/references/backup-restore.md)
 - [安全](knowledge-base-manager/references/safety.md)
 - [版本历史](CHANGELOG.md)
@@ -92,7 +93,12 @@ pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
 pwsh -NoProfile -File ./tests/test-kb-audit.ps1
 pwsh -NoProfile -File ./tests/test-kb-backup.ps1
 pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
+pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
 ```
+
+修改代码复制控件时另运行 `node tests/test-kb-static-copy.cjs`，修改文章目录时运行 `node tests/test-kb-static-toc.cjs`。
+该开发测试仅用 Node 内置模块和模拟 DOM，不替代浏览器剪贴板权限验收，
+也不为安装后的 Skill 引入 Node 依赖。
 
 ## 许可证
 

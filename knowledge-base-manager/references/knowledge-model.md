@@ -46,7 +46,7 @@ content/
 - `assets/`: images and attachments required by entries.
 - `archive/`: superseded or processed material retained for recovery and history.
 
-Create shallow topic subdirectories only after volume justifies them. Use links and maps for cross-topic relationships rather than forcing every entry into a single subject hierarchy. The root entrypoint links only stable project pages and human-maintained topic maps; it must not become a generated aggregation of leaf entries. Do not define topic-map thresholds, sharding, queues, or automatic aggregation. A future map proposal may be made only after unaggregated pages accumulate and the user explicitly asks for a manual batch proposal or operation.
+Create shallow topic subdirectories only after volume justifies them. Use links and maps for cross-topic relationships rather than forcing every entry into a single subject hierarchy. The root entrypoint's main collection links only stable project pages and human-maintained topic maps; optional type-browsing links stay secondary and outside the collection. Follow [reading navigation](navigation.md) for explicit collection regions and semantic breadcrumbs. Do not define topic-map thresholds, sharding, queues, or automatic aggregation. A future map proposal may be made only after unaggregated pages accumulate and the user explicitly asks for a manual batch proposal or operation.
 
 ## Formal entry metadata
 
@@ -110,7 +110,8 @@ suppress explanation needed to understand why, when, or with what limits an
 entry applies.
 
 For a new formal entry, require one reasonable inbound link from a parent
-project page or topic map: the parent links to the new entry. Do not require a
+project page or topic map: the parent links to the new entry inside its
+[explicit collection region](navigation.md). Do not require a
 reciprocal child-to-parent link or automatically add a `Related entries`
 section, sibling links, or additional parents. Add them only when the user
 explicitly requests a meaningful relationship; a formal entry otherwise

@@ -219,16 +219,39 @@ function Get-MarkdownLinks {
     param([string[]]$Lines, [int]$StartIndex)
 
     $links = [System.Collections.Generic.List[object]]::new()
-    $inFence = $false
+    $fenceCharacter = ''
+    $fenceLength = 0
+    $inCollection = $false
+    $collectionCount = 0
+    $collectionWellFormed = $true
     for ($i = [Math]::Max(0, $StartIndex); $i -lt $Lines.Count; $i++) {
         $rawLine = $Lines[$i]
-        if ($rawLine -match '^\s*(```|~~~)') {
-            $inFence = -not $inFence
+        if ($fenceLength -gt 0) {
+            $closingPattern = '^\s*' + [regex]::Escape($fenceCharacter) + '{' + $fenceLength + ',}[ \t]*$'
+            if ($rawLine -match $closingPattern) { $fenceLength = 0; $fenceCharacter = '' }
             continue
         }
-        if ($inFence) {
+        if ($rawLine -match '^\s*(?<fence>`{3,}|~{3,})(?<info>.*)$') {
+            $fence = $Matches.fence
+            if ($fence[0] -ne '`' -or -not $Matches.info.Contains('`')) {
+                $fenceCharacter = [string]$fence[0]
+                $fenceLength = $fence.Length
+                continue
+            }
+        }
+        if ($rawLine -ceq '<!-- kb-nav:children:start -->') {
+            $collectionCount++
+            if ($inCollection -or $collectionCount -gt 1) { $collectionWellFormed = $false }
+            $inCollection = $true
             continue
         }
+        if ($rawLine -ceq '<!-- kb-nav:children:end -->') {
+            if (-not $inCollection) { $collectionWellFormed = $false }
+            $inCollection = $false
+            continue
+        }
+        # Non-protocol marker spelling/placement cannot authorize exceptions.
+        if ($rawLine -match 'kb-nav:children:') { $collectionWellFormed = $false }
 
         $searchLine = [regex]::Replace($rawLine, '`[^`]*`', '')
         foreach ($match in [regex]::Matches($searchLine, '!?\[[^\]]*\]\((?<inside>[^)]+)\)')) {
@@ -248,9 +271,14 @@ function Get-MarkdownLinks {
                 Line                    = $rawLine
                 LineNumber              = $i + 1
                 IsExplicitExternalLocal = Test-ExplicitExternalLocalLabel -Line $rawLine
+                IsImage                 = $match.Value.StartsWith('!') -or $match.Value.StartsWith('[![')
+                IsInCollection          = $inCollection
+                CollectionWellFormed    = $true
             })
         }
     }
+    if ($inCollection) { $collectionWellFormed = $false }
+    foreach ($link in $links) { $link.CollectionWellFormed = $collectionWellFormed }
     return $links
 }
 
@@ -524,7 +552,8 @@ try {
                 continue
             }
 
-            if ([System.IO.Path]::IsPathRooted($decodedPath)) {
+            $isRootRelativePath = [System.IO.Path]::IsPathRooted($decodedPath)
+            if ($isRootRelativePath) {
                 Add-Issue warning 'ROOT_RELATIVE_LINK' $sourceRelative 'Use a relative Markdown link instead of a root-relative path.' $rawTarget
                 $decodedPath = $decodedPath.TrimStart('\', '/')
                 $rootForRootRelative = if ($isPortableSource) { $externalFull } else { $contentFull }
@@ -546,7 +575,18 @@ try {
                 continue
             }
             if (Test-Path -LiteralPath $candidateFull -PathType Container) {
-                Add-Issue warning 'DIRECTORY_LINK' $sourceRelative 'Link to a Markdown entry rather than a directory.' $rawTarget
+                # A narrow reading-layer shortcut: only the configured homepage
+                # may browse existing conventional top-level directories outside
+                # its collection declaration. This never creates inbound edges.
+                $directoryRelative = (Get-NormalizedRelativePath -BasePath $contentFull -TargetPath $candidateFull).TrimEnd('/')
+                $isHomepageBrowse = $parsed.FullPath.Equals($entrypointFull, [System.StringComparison]::OrdinalIgnoreCase) -and
+                    $link.CollectionWellFormed -and -not $link.IsInCollection -and -not $link.IsImage -and
+                    -not $isPortableSource -and -not $link.IsExplicitExternalLocal -and -not $isRootRelativePath -and
+                    $rawTarget -notmatch '[\\?#]' -and ([uri]::UnescapeDataString($pathPart)) -notmatch '\\' -and
+                    $directoryRelative -in @('projects', 'maps', 'knowledge', 'sources', 'decisions', 'inbox', 'archive', 'assets')
+                if (-not $isHomepageBrowse) {
+                    Add-Issue warning 'DIRECTORY_LINK' $sourceRelative 'Link to a Markdown entry rather than a directory.' $rawTarget
+                }
                 continue
             }
 

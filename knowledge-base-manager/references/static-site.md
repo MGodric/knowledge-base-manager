@@ -45,12 +45,64 @@ PowerShell's Markdown renderer converts these forms to math-marked HTML, then th
 
 The source knowledge base is read-only. Do not place the destination at, above, or below the knowledge-base root. Reject junctions and symbolic links in either data path. The builder does not copy or publish content reached through links outside `content_dir`.
 
+## Offline navigation and controls
+
+Pages embed a light-blue reading theme: a blue-gray outer background, a white
+content panel, blue headings and links, and narrow-screen and print layouts.
+The same theme applies to source pages and generated directory indexes, with
+no separate theme file to copy or fetch. Template version changes invalidate
+existing pages on the next build.
+
+With JavaScript enabled, headings h2-h4 inside the article form a page outline.
+It sits on the right on wide screens (at least 1100px), moves above the article
+on narrower screens, and is hidden for print. Existing heading IDs are reused;
+missing IDs are assigned without colliding with IDs elsewhere on the page.
+Selecting a link opens any ancestor disclosure before the native anchor jump.
+Pages without these headings, or with scripts disabled, show no empty sidebar.
+The outline is independent of KaTeX and uses no server or external resource.
+
+Breadcrumbs follow explicit project/map collection regions and the configured
+entrypoint, as specified in [reading navigation](navigation.md). They do not
+infer membership from physical directories or ordinary citations. Ambiguous
+chains expose collection entrances; uncollected pages are identified instead
+of pretending that a storage directory is their project. Generated type
+indexes remain secondary browsing lists with readable titles.
+
+For optional supporting detail, use native disclosure markup:
+
+````markdown
+<details>
+<summary>Supplementary example</summary>
+
+Ordinary **Markdown**, links and fenced code can go here.
+
+```powershell
+Get-Item .
+```
+
+</details>
+````
+
+The disclosure works without JavaScript. Nothing is automatically collapsed;
+use the narrow exception in [the Markdown format](markdown-format.md), keeping
+essential conclusions and limitations visible.
+
+With JavaScript enabled, fenced code blocks receive a copy button. Only a user
+click attempts a clipboard write, containing the code text alone. If the API
+is unavailable or the browser denies it, the page selects the code when
+possible and prompts for manual Ctrl+C / Command+C; it does not claim success.
+Clipboard permissions depend on the browser, including for `file://` pages.
+Code remains readable and manually selectable with scripts disabled. These
+controls do not require a server, network resource, or browser storage.
+
 ## Incremental manifest
 
 The destination contains `.kb-static-manifest.json`. Each source-page record binds its normalized source-relative path to the generated relative path and SHA-256 hashes. Asset records similarly bind each bundled KaTeX input to `_assets/katex/` output. A subsequent call:
 
 - generates pages for new Markdown files;
 - regenerates pages whose content hash, expected output, or generator/template state changed;
+- refreshes page navigation when the `navigation_digest` of titles, paths,
+  page types, and explicit collection edges changes;
 - skips pages whose inputs and generated output still match the manifest;
 - recopies a bundled asset when its source changed or its generated copy is missing or altered;
 - removes only stale HTML files explicitly owned by the prior manifest when their source Markdown was deleted;
@@ -68,4 +120,10 @@ normal per-batch step.
 
 ## Current boundary
 
-This first local-reading implementation provides recursive page generation, ordinary relative-page navigation, local styling, offline KaTeX formulas, and hash-based incremental rebuilds. It does not provide a local HTTP server, full-text search, backlinks, a relationship graph, authentication, public deployment, or copying of linked external project material.
+The local reader provides recursive page generation, relative-page navigation,
+curated collection breadcrumbs, auxiliary type indexes, optional native disclosures, code-copy controls, local
+styling, offline KaTeX formulas, and hash-based incremental rebuilds. It does
+not provide a local HTTP server, full-text search, backlinks, a relationship
+graph, authentication, public deployment, or copying of linked external
+project material. The builder is not an HTML sanitizer; render only trusted
+local knowledge content.

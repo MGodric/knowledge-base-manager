@@ -102,6 +102,17 @@ $$
 Get-Item
 ```
 
+<details>
+<summary>展开补充说明</summary>
+
+折叠中的 **重点** 与 [返回首页](../index.md)。
+
+```text
+折叠中的代码 <>&
+```
+
+</details>
+
 ## 小节
 
 [返回](../index.md)
@@ -114,7 +125,7 @@ Get-Item
     Assert-True ((Test-Path -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -PathType Leaf)) 'destination must contain its fixed machine-readable manifest'
     $manifest = Get-Content -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.schema -eq 'knowledge-base-static-site' -and $manifest.schema_version -eq 1) 'manifest must expose a stable schema/version'
-    Assert-True ($manifest.template_version -eq '3') 'manifest must identify the structured-Markdown CSS template version'
+    Assert-True ($manifest.template_version -eq '7') 'manifest must identify the curated-navigation template version'
     Assert-True ($manifest.entry_output_path -eq 'index.html' -and $first.Data.entry_page -eq (Join-Path $destination 'index.html')) 'result and manifest must identify the generated entry page'
     Assert-True (@($manifest.pages).Count -eq 2) 'manifest must record every Markdown source recursively'
     Assert-True ($manifest.katex.asset_version -eq '0.18.1' -and @($manifest.katex.assets).Count -eq 4) 'manifest must record the fixed KaTeX version and every copied asset'
@@ -125,6 +136,11 @@ Get-Item
     $indexHtml = Get-Content -LiteralPath (Join-Path $destination 'index.html') -Raw -Encoding UTF8
     $entryHtmlPath = Join-Path $destination '资料 空格\条目 中文.html'
     $entryHtml = Get-Content -LiteralPath $entryHtmlPath -Raw -Encoding UTF8
+    foreach ($themedPage in @($indexHtml, $entryHtml)) {
+        Assert-True ([regex]::Matches($themedPage, '<style id="kb-theme">').Count -eq 1) 'each page must carry exactly one embedded theme without a CSS asset dependency'
+        Assert-True ($themedPage.Contains('<script id="kb-toc-script">') -and $themedPage.Contains('<aside id="kb-toc" class="kb-toc" aria-label="文章目录" hidden>')) 'article navigation must be bundled and initially hidden for script-free reading'
+        Assert-True ($themedPage -match '(?s)<main class="kb-paper">.*?<nav class="kb-breadcrumb".*?<div class="kb-content">.*?</div>\s*</main>') 'both root and nested pages must wrap navigation and rendered content in the themed paper'
+    }
     Assert-True ($indexHtml -match '(?i)^<!doctype html>' -and $indexHtml -match '<html') 'output must be a complete directly browsable HTML page'
     Assert-True ($indexHtml -match 'href="[^"]+\.html#' -and $indexHtml -notmatch '\.md(?:[?#\"])') 'ordinary relative Markdown links must be rewritten to HTML links'
     Assert-True ($indexHtml -match 'href="[^"]+index\.html"') 'directory links must resolve to a generated directory index'
@@ -139,6 +155,7 @@ Get-Item
     Assert-True ($entryHtml -match '<del>旧状态</del>') 'strikethrough must render as semantic del HTML'
     Assert-True ($entryHtml -match '(?is)<a[^>]*class="footnote-ref"[^>]*><sup>1</sup></a>.*?<div class="footnotes">') 'footnotes must render with semantic reference and footnote sections'
     Assert-True ($entryHtml -match '(?is)<pre><code class="language-powershell">Get-Item.*?</code></pre>') 'fenced code must render as a language-marked code block'
+    Assert-True ($entryHtml -match '(?s)<details>\s*<summary>展开补充说明</summary>.*?<strong>重点</strong>.*?href="../index.html".*?<pre><code class="language-text">折叠中的代码 &lt;&gt;&amp;.*?</details>') 'explicit details must preserve rendered Markdown, local links and escaped code inside the disclosure'
     foreach ($cssToken in @('table{{display:block', 'th,td{{border:', 'ul.contains-task-list', '.task-list-item', 'blockquote{{', '.markdown-alert{{', '.markdown-alert-title{{', '.footnotes{{', 'hr{{', 'del{{', 'pre{{', 'img{{max-width:100%')) {
         Assert-True ($entryHtml.Contains($cssToken.Replace('{{', '{'))) "static template must contain structured-Markdown CSS token: $cssToken"
     }
@@ -152,6 +169,38 @@ Get-Item
 
     $second = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
     Assert-True ($second.ExitCode -eq 0 -and -not $second.Data.force_rebuild -and $second.Data.generated -eq 0 -and $second.Data.skipped -ge 3 -and $second.Data.assets_generated -eq 0 -and $second.Data.assets_skipped -eq 4) 'unchanged pages and intact KaTeX assets must be skipped'
+
+    # Separate hierarchy fixture leaves the existing incremental-count tests intact.
+    $navKb = Join-Path $testRoot 'navigation kb'
+    $navOutput = Join-Path $testRoot 'navigation output'
+    Write-Utf8 (Join-Path $navKb 'kb.yaml') "schema_version: 1`ncontent_dir: content`nentrypoint: content/start.md`n"
+    Write-Utf8 (Join-Path $navKb 'content/start.md') '# Start'
+    Write-Utf8 (Join-Path $navKb 'content/资料 & 空格/子 # %/index.md') '# 自定义目录 & 标题'
+    Write-Utf8 (Join-Path $navKb 'content/资料 & 空格/子 # %/leaf.md') '# 页面 &lt;标记&gt; & 说明'
+    $navBuild = Invoke-Builder -Root $navKb -Destination $navOutput -KatexAssets $katexAssets
+    Assert-True ($navBuild.ExitCode -eq 0) 'navigation hierarchy fixture must build'
+    $navCases = @(
+        @{ Path = 'index.html'; Links = 1; Current = '文件目录' },
+        @{ Path = 'start.html'; Links = 0; Current = 'Start' },
+        @{ Path = '资料 & 空格/index.html'; Links = 1; Current = '资料 & 空格' },
+        @{ Path = '资料 & 空格/子 # %/index.html'; Links = 1; Current = '自定义目录 & 标题' },
+        @{ Path = '资料 & 空格/子 # %/leaf.html'; Links = 1; Current = '页面 <标记> & 说明' }
+    )
+    foreach ($case in $navCases) {
+        $pagePath = Join-Path $navOutput $case.Path
+        $pageHtml = Get-Content -LiteralPath $pagePath -Raw -Encoding UTF8
+        Assert-True ($pageHtml.Contains('<style id="kb-theme">') -and $pageHtml.Contains('<main class="kb-paper">')) 'generated directory indexes and source pages must share the embedded theme'
+        $navMatch = [regex]::Match($pageHtml, '(?s)<nav class="kb-breadcrumb".*?</nav>')
+        Assert-True $navMatch.Success "breadcrumbs must exist on $($case.Path)"
+        [xml]$navXml = $navMatch.Value
+        $links = @($navXml.SelectNodes('//a'))
+        $current = @($navXml.SelectNodes('//span[@aria-current="page"]'))
+        Assert-True ($links.Count -eq $case.Links -and $current.Count -eq 1 -and $current[0].InnerText -eq $case.Current) "breadcrumb hierarchy and escaped current title must match $($case.Path)"
+        foreach ($link in $links) {
+            $resolved = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $pagePath) ([uri]::UnescapeDataString($link.GetAttribute('href')))))
+            Assert-True ((Test-Path -LiteralPath $resolved -PathType Leaf) -and $resolved -ne $pagePath -and $resolved.StartsWith($navOutput + [IO.Path]::DirectorySeparatorChar)) 'every breadcrumb must resolve to another generated page inside the output'
+        }
+    }
 
     $forceExtra = Join-Path $destination 'force-preserve.txt'
     Write-Utf8 $forceExtra 'unrelated destination file'

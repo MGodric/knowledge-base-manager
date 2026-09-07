@@ -20,7 +20,9 @@ proprietary notes app.
 - Audit manifests, metadata, links, provenance, path containment, duplicate
   IDs, and likely synchronization-conflict artifacts.
 - Build an offline, recursively browsable static HTML reading copy with bundled
-  KaTeX formula rendering; no web server is required.
+  KaTeX formula rendering, a light-blue reading theme, curated project/topic breadcrumbs,
+  auxiliary type indexes, optional collapsible details,
+  a responsive article outline, and code-copy buttons with a manual-copy fallback; no web server is required.
 - Create and verify `ReferenceComplete` backups, including the knowledge base
   and explicitly registered external source files; restore them as `Portable`
   knowledge bases.
@@ -93,6 +95,7 @@ provided.
 - [Markdown format](knowledge-base-manager/references/markdown-format.md)
 - [Audit rules](knowledge-base-manager/references/audit-rules.md)
 - [Static site](knowledge-base-manager/references/static-site.md)
+- [Reading navigation](knowledge-base-manager/references/navigation.md)
 - [Backup and restore](knowledge-base-manager/references/backup-restore.md)
 - [Safety](knowledge-base-manager/references/safety.md)
 - [Changelog](CHANGELOG.md)
@@ -112,7 +115,14 @@ pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
 pwsh -NoProfile -File ./tests/test-kb-audit.ps1
 pwsh -NoProfile -File ./tests/test-kb-backup.ps1
 pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
+pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
 ```
+
+For copy-control changes, also run `node tests/test-kb-static-copy.cjs`;
+for article-navigation changes, run `node tests/test-kb-static-toc.cjs`.
+This development-only test uses Node's built-in modules and a simulated DOM;
+it does not replace actual browser clipboard-permission testing or add a
+Node requirement to the installed Skill.
 
 ## License
 

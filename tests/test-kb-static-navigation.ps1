@@ -192,3 +192,7 @@ finally {
         (Split-Path -Leaf $testRoot) -match '^kb-navigation-tests-[0-9a-f]{32}$') 'cleanup target stays inside the temporary directory'
     if (Test-Path -LiteralPath $testRoot) { Remove-Item -LiteralPath $testRoot -Recurse -Force }
 }
+
+# Expected failing subprocesses must not determine a successful CI script exit.
+# Reached only after all assertions and cleanup complete successfully.
+$global:LASTEXITCODE = 0

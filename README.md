@@ -16,7 +16,10 @@ proprietary notes app.
 - Capture notes, promote durable entries, maintain links, and archive obsolete
   material using canonical, KaTeX-compatible Markdown.
 - Run **Project Synthesis only when explicitly requested** to reconcile sources
-  or projects, with an auditable evidence boundary and review record.
+  or projects, with reader questions, source coverage, and a review record.
+- Promote and synthesize around what the reader needs to understand or do,
+  retaining explanations and examples; review actual answers separately from
+  structural audit. Capture stays lightweight.
 - Audit manifests, metadata, links, provenance, path containment, duplicate
   IDs, and likely synchronization-conflict artifacts.
 - Build an offline, recursively browsable static HTML reading copy with bundled
@@ -92,6 +95,8 @@ provided.
 - [Workflows](knowledge-base-manager/references/workflows.md)
 - [Project Synthesis](knowledge-base-manager/references/project-synthesis.md)
 - [Knowledge model](knowledge-base-manager/references/knowledge-model.md)
+- [Knowledge writing](knowledge-base-manager/references/knowledge-writing.md)
+- [Chinese writing examples](knowledge-base-manager/references/knowledge-writing-examples.md)
 - [Markdown format](knowledge-base-manager/references/markdown-format.md)
 - [Audit rules](knowledge-base-manager/references/audit-rules.md)
 - [Static site](knowledge-base-manager/references/static-site.md)
@@ -104,7 +109,7 @@ provided.
 
 ```text
 knowledge-base-manager/  installable Skill source
-tests/                   disposable PowerShell fixtures
+tests/                   automated PowerShell and Node.js tests
 ```
 
 Only `knowledge-base-manager/` is installed. Tests use isolated temporary
@@ -123,6 +128,9 @@ for article-navigation changes, run `node tests/test-kb-static-toc.cjs`.
 This development-only test uses Node's built-in modules and a simulated DOM;
 it does not replace actual browser clipboard-permission testing or add a
 Node requirement to the installed Skill.
+
+Model-reviewed examples are maintained as local development material and are
+not CI dependencies.
 
 ## License
 

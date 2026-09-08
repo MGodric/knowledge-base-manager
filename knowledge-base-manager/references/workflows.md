@@ -37,7 +37,7 @@ Capture favors speed and information preservation over taxonomy.
 2. Re-read the user-supplied material and any explicitly provided source.
 3. Search only enough to avoid an obvious duplicate capture.
 4. Create a readable Markdown file under `content/inbox/` with a date and concise title.
-5. Preserve facts, context, source pointers, uncertainties, and follow-up questions. Label inference as inference.
+5. Preserve facts, context, source pointers, uncertainties, and follow-up questions. Retain whether the source describes an actual observation, a fictional example, or a simulated result; do not rewrite fiction or a hypothesis as an event that actually occurred. Label inference as inference.
 6. Apply [the Markdown content format](markdown-format.md): write mathematical notation as KaTeX-compatible `$...$` or `$$...$$`, and keep backticks only for literal code or identifiers.
 7. Add only obvious links; do not invent a final type or broad generalization.
 8. Run the audit, resolve every `MATH_CODE_SPAN` issue in the new file, and report the new file.
@@ -46,15 +46,15 @@ An inbox entry may omit formal metadata. Never claim that capture has validated 
 
 ## Promote
 
-Promotion converts a capture into reusable knowledge without losing the original evidence boundary.
+Promotion turns a capture into knowledge a reader can understand and use, while preserving its supporting sources and material conditions. Read [knowledge-writing.md](knowledge-writing.md); this does not invoke the full Project Synthesis workflow.
 
 1. Read the inbox item, its explicit sources, and directly related formal entries.
-2. Inventory the material source topics and make a candidate coverage ledger before deciding the number of entries.
+2. Identify the reader, intended use, and important questions from the request and material. Inventory material source topics in the same candidate coverage ledger before deciding the number of entries. Ask only when a material ambiguity cannot be resolved from context.
 3. Search for duplicate titles, IDs, synonyms, and overlapping content.
 4. Decide whether to merge, create a new entry, or split distinct concepts. Do not inherit a fixed entry count from the parent unless the user explicitly required one. If multiple interpretations would materially change the result, surface the ambiguity before writing.
 5. Choose `type`, destination, filename, and a permanent unique `id` using the knowledge model.
-6. Preserve useful original information while separating facts, sourced claims, project observations, inferences, and open questions.
-7. Add a concise summary, necessary scope and limitations, complete source/reproduction locators, and meaningful links.
+6. Organize answers with the explanations, examples, conditions, and details needed to use them. Keep facts, sourced claims, project observations, inferences, and open questions distinguishable without turning every paragraph into a verification report. Resolve gaps from authorized sources; otherwise name the missing answer and its effect.
+7. Apply the writing reference's guidance on titles, answer order, and placement of conditions. Keep source/reproduction locators and meaningful links; do not substitute general reminders for available answers.
 8. Apply [the Markdown content format](markdown-format.md): distinguish mathematics from literal code, normalize formulas to KaTeX-compatible TeX, and preserve intentional code spans.
 9. Give a new formal entry one reasonable inbound link from a parent project
    page or topic map, inside its [explicit collection region](navigation.md).
@@ -62,8 +62,8 @@ Promotion converts a capture into reusable knowledge without losing the original
    to link back or mechanically add sibling, related-entry, or extra-parent
    links; keep source provenance on the entry itself.
 10. By default, move the processed inbox item to `content/archive/inbox/<year>/`. If the user wants it retained in place, add a clear pointer to the promoted entry instead.
-11. Finish the coverage ledger: map every material topic to a formal entry, project-summary-only treatment, or deliberate deferral with a reason.
-12. Run the audit and resolve every `MATH_CODE_SPAN` issue in files changed by the promotion. Report the created or merged entry, archived source, modified links, coverage ledger, and unresolved questions. State that structural audit success does not prove semantic completeness.
+11. Finish the same coverage ledger for important reader questions and material source topics: locate their answers in an entry, project-summary-only treatment, or explain a gap/deferral. Apply [content acceptance](knowledge-writing.md#content-acceptance) to the actual body and repair missing supported answers. Do not add a Synthesis Record or additional review machinery solely because an ordinary Promote uses this check.
+12. Run the audit and resolve every `MATH_CODE_SPAN` issue in files changed by the promotion. Report the created or merged entry, archived source, modified links, coverage ledger, and unresolved questions. A short completion report must not shorten the durable body; structural audit success does not establish content completeness.
 
 Promotion does not itself authorize changing `draft` to `stable`.
 

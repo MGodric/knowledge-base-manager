@@ -10,7 +10,8 @@ Knowledge Base Manager 是一个 Codex Skill，用于在多个项目之间维护
 
 - 初始化或接管由 `kb.yaml` 描述的知识库。
 - 使用规范的 KaTeX 兼容 Markdown 捕获笔记、提升持久条目、维护链接和归档旧内容。
-- **仅在明确请求时**运行 Project Synthesis 来协调多个来源或项目，并保留可审计的证据边界和审阅记录。
+- **仅在明确请求时**运行 Project Synthesis 来协调多个来源或项目，记录读者问题、来源覆盖和审阅结果。
+- Promote 与综合围绕读者需要理解或完成的事情组织内容，保留解释与实例；实际答案的内容验收独立于结构审计。Capture 保持轻量。
 - 审计 manifest、元数据、链接、来源信息、路径范围、重复 ID 及可能的同步冲突痕迹。
 - 生成可离线递归浏览的静态 HTML 阅读副本，内嵌浅蓝阅读主题，支持项目／主题收录面包屑、辅助类型一览、响应式文章目录、KaTeX 公式、可选折叠说明与代码复制（失败时提示手动复制）；无需 Web 服务器。
 - 创建和验证 `ReferenceComplete` 备份，其中包含知识库及显式登记的库外来源文件；可将其恢复为 `Portable` 知识库。
@@ -71,6 +72,8 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 - [工作流](knowledge-base-manager/references/workflows.md)
 - [Project Synthesis](knowledge-base-manager/references/project-synthesis.md)
 - [知识模型](knowledge-base-manager/references/knowledge-model.md)
+- [知识写作](knowledge-base-manager/references/knowledge-writing.md)
+- [中文完整对照样文](knowledge-base-manager/references/knowledge-writing-examples.md)
 - [Markdown 格式](knowledge-base-manager/references/markdown-format.md)
 - [审计规则](knowledge-base-manager/references/audit-rules.md)
 - [静态站点](knowledge-base-manager/references/static-site.md)
@@ -83,7 +86,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 ```text
 knowledge-base-manager/  可安装的 Skill 源码
-tests/                   可丢弃的 PowerShell fixture
+tests/                   自动化 PowerShell 与 Node.js 测试
 ```
 
 只有 `knowledge-base-manager/` 会被安装。测试使用隔离的临时知识库、项目、备份和恢复目标：
@@ -99,6 +102,8 @@ pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
 修改代码复制控件时另运行 `node tests/test-kb-static-copy.cjs`，修改文章目录时运行 `node tests/test-kb-static-toc.cjs`。
 该开发测试仅用 Node 内置模块和模拟 DOM，不替代浏览器剪贴板权限验收，
 也不为安装后的 Skill 引入 Node 依赖。
+
+需要模型评阅的样例作为本地开发材料维护，不构成 CI 依赖。
 
 ## 许可证
 

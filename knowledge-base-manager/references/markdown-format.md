@@ -13,10 +13,10 @@ That is the verified baseline, not a claim that every PowerShell 7 minor
 release supports every feature below. Until CI establishes a minimum version,
 the behavior tests define this Skill's supported renderer profile.
 
-Choose a structure for the information being preserved, rather than forcing a
-template. Distilled knowledge is not terse knowledge: remove duplicated or
-tree-copied material, but retain causal rationale, consequences, uncertainty,
-and boundaries that make a conclusion reusable.
+This reference controls representation and renderer compatibility. For Promote
+and Project Synthesis, [knowledge-writing.md](knowledge-writing.md) controls
+question selection, explanation, and content acceptance. Choose a structure for
+the information being preserved rather than forcing a template.
 
 - Use ordinary prose for explanation, causal rationale, and qualifications.
 - Use a table when the reader must compare repeated dimensions, states, or
@@ -25,8 +25,9 @@ and boundaries that make a conclusion reusable.
   lists for bounded substeps or grouped detail.
 - Use task lists for static, checkable gates. They render as disabled
   checklists, not interactive forms.
-- Use blockquotes for concise boundaries or warnings. GitHub alerts are useful
-  only when the generated page has the bundled alert CSS.
+- Use blockquotes when a quotation or short callout helps reading; they are not
+  required for every qualification. GitHub alerts are useful only when the
+  generated page has the bundled alert CSS.
 - Use fenced code for executable examples and inline code for literal commands,
   identifiers, paths, labels, and strings.
 

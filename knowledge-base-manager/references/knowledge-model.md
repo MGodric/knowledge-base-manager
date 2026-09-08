@@ -75,39 +75,23 @@ The root entrypoint may omit formal metadata, but it still needs one clear level
 
 ## Body shape
 
-Use the sections that materially help the entry; do not create empty boilerplate:
+Choose sections around the actual reader questions using
+[knowledge-writing.md](knowledge-writing.md). There is no common article skeleton:
+start with a useful answer or explanation, develop the relevant details, and
+include supporting sources. Conditions can sit beside the claim or procedure
+that they qualify rather than occupying a mandatory limitations section.
 
-```markdown
-# Title
-
-> One to three sentences explaining what this is and when it is useful.
-
-## Content
-
-## Scope and limitations
-
-## Sources
-
-## Related entries
-```
-
-Adapt by type:
+The metadata type describes the entry's role, not a required heading set:
 
 - `source`: bibliographic identity, source summary, evidence, and reusable conclusions.
 - `decision`: context, decision, alternatives, rationale, consequences, and review trigger.
 - `project`: scope, external location hints, and knowledge outputs.
 - `map`: curated groups of links with explanatory context, not copied entry bodies.
 
-Adapt the representation to the entry's information shape; these structures
-are optional, not boilerplate. A project can use a status or asset matrix. A
-method can pair inputs and outputs with ordered steps and explicit stop or
-failure conditions. A decision can compare options, rationale, tradeoffs, and
-review triggers. A source can use an evidence table that distinguishes what it
-supports from its limits. A map can group links under short explanatory labels.
-Use prose to preserve causal explanation and uncertainty around those
-structures. “Distilled” removes duplicated or tree-copied content; it does not
-suppress explanation needed to understand why, when, or with what limits an
-entry applies.
+For presentation choices use [markdown-format.md](markdown-format.md). For
+explanation depth, examples, and acceptance use the writing reference; neither
+metadata completeness nor a correctly formatted table establishes that a topic
+has been explained.
 
 For a new formal entry, require one reasonable inbound link from a parent
 project page or topic map: the parent links to the new entry inside its

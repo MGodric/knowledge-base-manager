@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 - 2026-09-09
+
+- Organize Promote and Project Synthesis around reader questions, retain explanations and examples, and check for missing answers separately from formatting and source metadata.
+- Use lower-tier subagents for routine organization and same-tier models for complex synthesis; require user approval before upgrading to the highest available tier.
+- Remove non-deterministic, human/model-reviewed test cases not used by CI from version control.
+
 ## 0.1.3 - 2026-09-08
 
 - Added a light-blue static reading theme with a distinct article panel, responsive article outline, collapsible details, and code-copy buttons with a manual-copy fallback.

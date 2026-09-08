@@ -5,7 +5,7 @@ description: Manage a human-readable Markdown knowledge base across projects, in
 
 # Knowledge Base Manager
 
-Maintain one portable Markdown knowledge base for both people and agents. Markdown is the source of truth; user-managed Google Drive, OneDrive, Dropbox, or another local-folder synchronizer is only a transport layer.
+Maintain one portable Markdown knowledge base for both people and agents. Durable entries should answer the reader's important questions and explain enough to understand or use the knowledge. Markdown is the source of truth; user-managed Google Drive, OneDrive, Dropbox, or another local-folder synchronizer is only a transport layer.
 
 ## Resolve the knowledge base
 
@@ -66,7 +66,8 @@ If a request combines modes, search before writing and audit after all writes.
 
 - Keep content understandable in a generic Markdown reader. Use standard relative Markdown links, not editor-specific wiki-link syntax as the canonical format.
 - Write mathematics with KaTeX-compatible `$...$` or `$$...$$`; reserve backticks for literal code, commands, identifiers, paths, labels, and strings. Follow [references/markdown-format.md](references/markdown-format.md) for every knowledge-content write and resolve `MATH_CODE_SPAN` audit findings in changed files before completion.
-- Deliberately choose renderer-compatible Markdown for the information shape: prose for rationale, tables for repeated dimensions or comparisons, ordered lists for procedures, task lists for checkable gates, blockquotes or supported alerts for boundaries and warnings, and fenced code for executable examples. Do not impose a fixed template or table count; see [references/markdown-format.md](references/markdown-format.md).
+- For Promote and Project Synthesis, read [references/knowledge-writing.md](references/knowledge-writing.md) for reader questions, explanation, and content acceptance. Use its [worked examples](references/knowledge-writing-examples.md) when calibrating writing or repairing a weak draft; they are not universal templates. Capture remains a faithful, lightweight note.
+- Choose renderer-compatible structure using [references/markdown-format.md](references/markdown-format.md); content quality is checked separately from formatting and structural audit.
 - Follow the user’s explicit language, then the surrounding note or project convention, then the current conversation and environment. Do not translate existing content unless asked.
 - Preserve sources, scope, uncertainty, and limits. Do not turn a project-specific observation into a general fact without evidence.
 - For project-derived knowledge, record reproducible provenance: project identity, a project-relative locator when available, `verified: YYYY-MM-DD`, and either `revision: <value>` or an honest `version-state: <value>`. An external absolute path is optional; when used, label it as outside the knowledge base and machine-specific and add `<!-- kb-external-local -->` on the same line. Such links never replace the distilled explanation.

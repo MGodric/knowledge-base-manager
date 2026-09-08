@@ -16,6 +16,10 @@
 /private/
 /docs/
 
+# Model-reviewed Project Synthesis cases are maintained locally under /docs/.
+# Keep the former tracked path ignored so they cannot be reintroduced by mistake.
+/tests/fixtures/project-synthesis/
+
 # -----------------------------------------------------------------------------
 # Generated knowledge bases, backup plans, bundles, and restore staging
 # -----------------------------------------------------------------------------

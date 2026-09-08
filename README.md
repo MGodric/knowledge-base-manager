@@ -109,7 +109,7 @@ provided.
 
 ```text
 knowledge-base-manager/  installable Skill source
-tests/                   disposable PowerShell fixtures
+tests/                   automated PowerShell and Node.js tests
 ```
 
 Only `knowledge-base-manager/` is installed. Tests use isolated temporary
@@ -128,6 +128,9 @@ for article-navigation changes, run `node tests/test-kb-static-toc.cjs`.
 This development-only test uses Node's built-in modules and a simulated DOM;
 it does not replace actual browser clipboard-permission testing or add a
 Node requirement to the installed Skill.
+
+Model-reviewed examples are maintained as local development material and are
+not CI dependencies.
 
 ## License
 

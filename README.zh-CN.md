@@ -86,7 +86,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 ```text
 knowledge-base-manager/  可安装的 Skill 源码
-tests/                   可丢弃的 PowerShell fixture
+tests/                   自动化 PowerShell 与 Node.js 测试
 ```
 
 只有 `knowledge-base-manager/` 会被安装。测试使用隔离的临时知识库、项目、备份和恢复目标：
@@ -102,6 +102,8 @@ pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
 修改代码复制控件时另运行 `node tests/test-kb-static-copy.cjs`，修改文章目录时运行 `node tests/test-kb-static-toc.cjs`。
 该开发测试仅用 Node 内置模块和模拟 DOM，不替代浏览器剪贴板权限验收，
 也不为安装后的 Skill 引入 Node 依赖。
+
+需要模型评阅的样例作为本地开发材料维护，不构成 CI 依赖。
 
 ## 许可证
 

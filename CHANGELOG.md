@@ -5,7 +5,7 @@
 - Organize Promote and Project Synthesis around reader questions as well as source topics, using the existing coverage ledger for answers and explicit gaps.
 - Add focused knowledge-writing guidance and complete Chinese procedural and research examples; separate durable content depth from completion-report brevity.
 - Review actual explanations, examples, and useful details independently of structural audit, and place material conditions beside the claims they qualify.
-- Keep Capture lightweight without a synthesis ledger and explicitly preserve whether material is an actual observation, fiction, or simulation; add fictional behavior fixtures for source gaps, short replies, and mode isolation. Runtime scripts, metadata schemas, and publication remain unchanged.
+- Keep Capture lightweight without a synthesis ledger and explicitly preserve whether material is an actual observation, fiction, or simulation; maintain model-reviewed examples locally while leaving automated tests unchanged. Runtime scripts, metadata schemas, and publication remain unchanged.
 - Route already-determined semantic organization to a lower-cost editor and unresolved knowledge judgment to a same-tier editor, with explicit escalation, reviewer-capability, and highest-tier cost-consent gates.
 
 ## 0.1.3 - 2026-09-08

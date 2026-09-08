@@ -30,18 +30,29 @@ honestly; do not imply exhaustive research or validation that did not occur.
 
 Maintain a concise working record while progressing through this order:
 
-1. **Scope and source inventory.** List authorized sources, their role,
-   accessible boundaries, and exclusions. Do not widen either source access or
-   write authority.
-2. **Topic map.** Map material topics, claims, observations, decisions,
-   conflicts, and unanswered questions to their sources.
+1. **Reader and purpose.** Identify who will read the result, what they need
+   to understand or do, and the important questions the result should answer.
+   Infer these from the request and project context when clear; ask only if
+   different plausible purposes would materially change the result. The editor
+   may refine the questions after source reading without expanding authority.
+2. **Source inventory and answer map.** List authorized sources, their role,
+   accessible boundaries, and exclusions. Read the relevant source sections
+   needed to answer the questions and preserve important source topics. Follow
+   useful attachments or locators within the authorized scope; do not equate an
+   index or summary with the underlying evidence, and do not require reading
+   every file in full. Map claims, mechanisms, observations, decisions,
+   conflicts, and missing answers to sources using the existing coverage
+   ledger. Do not widen source access or write authority.
 3. **Disposition.** Assign every material item `KEEP`, `INBOX`, or `DROP`.
    `DROP` means it is out of the synthesis result, not that its source may be
    deleted. `INBOX` may become a Capture only when the authorized write scope
    explicitly includes an inbox record.
-4. **Verification.** Check provenance, evidence strength, duplicates, and
-   contradictions for each retained topic. Mark unsupported or ambiguous
-   assertions instead of repairing gaps by inference.
+4. **Verification and gaps.** Check provenance, evidence strength, duplicates,
+   and contradictions for each retained topic. Resolve missing answers by
+   reading relevant authorized material. For information outside that scope,
+   record the missing answer and its effect on the deliverable; do not invent
+   facts or silently expand research. A supported partial guide is useful, but
+   must not be reported as covering questions it cannot answer.
 5. **Entry decision.** For every verified retained topic select exactly the
    applicable outcome: `UPDATE`, `LINK/COEXIST`, `NEW`, `CONFLICT`, or
    `NO-WRITE`. `LINK/COEXIST` preserves distinct useful entries; `CONFLICT`
@@ -50,17 +61,21 @@ Maintain a concise working record while progressing through this order:
    authorize deletion or Capture; only an explicitly approved `UPDATE`, `LINK`,
    or `NEW` operation may change the knowledge base.
 6. **Draft and write.** In a write synthesis, the designated editor creates or
-   changes only the approved minimal set. Formal entries carry their own
-   provenance and boundaries; do not rely on the working record as a substitute.
-   Make a representation pass: detect multi-dimensional information compressed
-   into prose, and use tables or appropriate lists/checklists for repeated
-   statuses, assets, workflow interfaces, or decision comparisons. Preserve the
-   explanatory prose that gives those structures their rationale and limits; do
-   not create empty tables or follow a fixed quota.
+   changes only the approved minimal set. Follow
+   [knowledge-writing.md](knowledge-writing.md) to organize complete explanations
+   around the reader's questions, not the order of source files. Keep related
+   conditions, mechanisms, steps, and examples together when splitting would
+   force readers to reconstruct the answer. Formal entries retain their own
+   supporting provenance and material conditions; working records do not replace
+   them. Use [markdown-format.md](markdown-format.md) for representation.
    In an assessment, stop at an actionable draft or no-write proposal.
-7. **Review result.** Audit and review yield `PASS`, `FIX`, or `BLOCKED`.
-   `FIX` returns to the original editor; `BLOCKED` preserves all sources and
-   conflicts and identifies the needed user decision or evidence.
+7. **Review result.** Check actual answers and explanations with the content
+   acceptance questions in [knowledge-writing.md](knowledge-writing.md#content-acceptance),
+   then audit structure. Review yields `PASS`, `FIX`, or `BLOCKED`. Supported
+   answers omitted from the body are `FIX`, even with a clean audit. A missing
+   source is a visible gap, not automatically a blocker for all useful work;
+   `BLOCKED` identifies evidence or a decision required for the agreed deliverable.
+   `FIX` returns to the original editor; preserve sources and conflicts.
 8. **Final report.** Report the completed state, without overstating semantic
    completeness. Mention presentation choices in the coverage or final report
    only when they materially help a reviewer understand what was preserved; do
@@ -110,15 +125,20 @@ a write synthesis, the final Synthesis Record is the final report plus the
 editor's change manifest and coverage ledger; for a read-only assessment, it is
 the condensed working record in the final report. It must state at least:
 
-- why the synthesis was requested and its review mode;
+- why the synthesis was requested, its intended reader and use, and review mode;
 - sources and their actual access/verification boundaries;
 - actual changes, including no-write, coexistence, or preserved conflicts;
 - unresolved questions, blockers, and deliberate deferrals;
-- the coverage ledger mapping material topics to entries, project-summary-only
-  treatment, or a reasoned deferral; and
+- the same coverage ledger mapping both important reader questions and material
+  source topics to answers in entries, project-summary-only treatment, or a
+  reasoned gap/deferral; locate the answer rather than merely listing a file; and
 - review result: `PASS`, `FIX`, or `BLOCKED`.
 
-The primary agent re-reads actual changes and independently checks the stated
+The primary agent re-reads actual changes and independently checks whether a
+reader can answer the agreed questions from the result. Record specific omissions,
+errors, or confusing passages; length and audit counts are not content acceptance.
+Keep verification process notes in the Synthesis Record rather than repeating
+those notes throughout the article. The primary also checks the stated
 acceptance conditions. Low-risk work ends there. Group review by distinct
 substantive risk clusters, not by entry count: ordinary entries do not each
 start a reviewer. For the high-risk categories in

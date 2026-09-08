@@ -9,7 +9,7 @@ If the current handoff contains `KB_EDITOR_ROLE: designated`, this agent is alre
 The main agent must:
 
 1. Resolve the exact absolute knowledge-base root and remove any ambiguity before delegation.
-2. Determine the authorized operation, a minimal source-path list, sensitive-data boundary, and acceptance criteria without reading all source bodies into the main context. Do not preselect an exact number of entries unless the user explicitly requires that count.
+2. Determine the authorized operation, a minimal source-path list, sensitive-data boundary, and acceptance criteria without reading all source bodies into the main context. For semantic work, carry forward the reader, purpose, and important questions from the user's request; let the editor refine them after source reading. Do not preselect an exact number of entries unless the user explicitly requires that count.
 3. Spawn the editor before any knowledge entry is drafted or staged. Use an isolated handoff (`fork_turns: "none"`) unless a small recent-turn window is necessary.
 4. Send a minimal, self-contained handoff rather than the entire conversation when possible.
 5. Wait for the editor to finish, then re-read the actual modified blocks rather than accepting its summary. Check every acceptance field and claimed count, inspect its reported paths, and independently run or verify the final audit. Prefer one 120-180 second wait; inspect agent state only after a timeout or attention event instead of polling repeatedly at short intervals.
@@ -22,7 +22,7 @@ The designated editor must:
 1. Treat `KB_EDITOR_ROLE: designated` as the recursion guard and explicitly use `$knowledge-base-manager` with the exact root supplied in the handoff.
 2. Re-read source and target files before editing and apply the relevant workflow and safety reference. For semantic promotion, inventory material topics first and choose the complete set of distinct durable entries only after reading the authorized sources.
 3. Stay inside the authorized root and operation scope.
-4. Run `kb-audit.ps1` after writes and return a compact change manifest plus a coverage ledger mapping each material source topic to a formal entry, project-summary-only treatment, or deliberate deferral with a reason.
+4. Run `kb-audit.ps1` after writes and return a compact change manifest. For Promote and Project Synthesis, include the existing coverage ledger mapping reader questions and material source topics to actual answers, project-summary-only treatment, or a reasoned gap/deferral. Capture and mechanical writes do not require this ledger or synthesis review.
 5. Not spawn or delegate to another agent.
 
 Because agents share the same filesystem, the editor changes the real target files. The main agent must not recreate the same edits.
@@ -39,7 +39,10 @@ important inferences promoted from observations, or safety, legal, medical,
 financial, or administrative-eligibility content. This reviewer is not a
 designated editor: it must not edit files, expand the approved sources or
 permissions, or delegate. It reviews the stated scope, evidence boundary,
-provenance, coverage ledger, and actual written result, then returns only
+provenance, and actual written result against the reader questions and source
+coverage. Apply [content acceptance](knowledge-writing.md#content-acceptance),
+including whether the explanation works without reconstructing it from sources,
+then return only
 `PASS`, `FIX`, or `BLOCKED` with concise reasons.
 
 The original designated editor addresses `FIX`; the main agent re-reads the
@@ -98,16 +101,22 @@ Prefer an isolated spawn with no inherited turns and include only:
 - exact knowledge-base root;
 - operation and acceptance criteria;
 - exact source files or a concise factual payload;
-- for semantic work, permission to determine entry decomposition after source inventory rather than a parent-imposed count;
+- for semantic work, the intended reader and prior knowledge, practical or explanatory purpose, important questions, and concrete details to retain; pass known gaps and the source-reading scope, including whether referenced attachments are authorized;
+- for semantic work, permission to refine questions and determine entry decomposition after reading authorized sources rather than a parent-imposed count;
 - for a synthesis batch, the one-time metadata manifest fields, top-*k*
   duplicate-body limit with ambiguity-only expansion, and each parent page that
   may be updated once;
 - language and local note conventions;
 - allowed and forbidden paths;
-- required provenance fields (including literal `verified` and revision/version-state tokens), coverage ledger, audit command, and response fields;
+- required provenance fields (including literal `verified` and revision/version-state tokens for formal project-derived entries), audit command, and response fields; include the coverage ledger only for semantic work;
 - the instruction that this agent is the final editor and must not delegate.
 
-The editor's completion report must name the effective model and reasoning effort when observable, otherwise the requested route and that it is unconfirmed; it must also name every changed path, audit error/warning counts, and unresolved or deliberately deferred topics. It must derive field-presence claims by re-reading the written files, not from the handoff or intended template. Structural audit success does not establish semantic completeness; the coverage ledger is the human-reviewable completeness check.
+Keep durable-body requirements separate from completion-report requirements.
+A request for a short reply governs the report, not the depth of the stored
+explanation, unless the user explicitly asks for a short entry. Do not pass
+unrelated conversational brevity preferences as article constraints.
+
+The editor's completion report must name the effective model and reasoning effort when observable, otherwise the requested route and that it is unconfirmed; it must also name every changed path, audit error/warning counts, and unresolved or deliberately deferred topics. It must derive field-presence claims by re-reading the written files, not from the handoff or intended template. For semantic work, the coverage ledger locates answers for human review; the primary must inspect them. Neither a filled ledger nor structural audit success establishes content completeness.
 
 If a self-contained handoff would lose essential nuance from recent conversation, pass the smallest supported recent-turn window instead of the full history.
 

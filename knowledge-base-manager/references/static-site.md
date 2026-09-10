@@ -95,14 +95,44 @@ Clipboard permissions depend on the browser, including for `file://` pages.
 Code remains readable and manually selectable with scripts disabled. These
 controls do not require a server, network resource, or browser storage.
 
+## Offline relationship graph and navigation page
+
+The static build includes an offline two-dimensional relationship graph built
+with native SVG, CSS, and vanilla JavaScript without third-party libraries:
+
+- **Homepage embedding (inline mode)**: the configured entrypoint embeds an
+  interactive radial graph below the content paper, illustrating root
+  collections and immediate structure.
+- **Article overlay (overlay mode)**: each reading page includes a "关系图谱"
+  button in the header to open a full-screen overlay centered and focused on
+  the current page, with Esc key exit and keyboard focus trapping/restoration.
+- **Standalone navigation page (`kb-navigation.html`)**: a dedicated, full-viewport
+  navigation page is generated in the root of the output directory, serving as
+  a clean entrypoint for global browsing and future navigation tools.
+- **Graph nodes and edges**: nodes represent pages, article sections (h2–h6),
+  and deduplicated external references. Edges differentiate explicit curation
+  (`collects`), outline containment (`contains`), and text citations (`references`).
+- **Interactions**: clicking a node body expands/collapses child nodes and
+  smoothly centers/focuses the camera; clicking a title link opens the target
+  page or section in a new tab (`target="_blank" rel="noopener noreferrer`);
+  clicking "预览" opens a safe `<dialog>` modal with text excerpts or reference
+  metadata. Hovering highlights direct one-hop neighbors and connected edges.
+- **Data assets and manifest tracking**: graph data (`_assets/graph/graph-data.js`)
+  and preview excerpts (`_assets/graph/graph-previews.js`) are generated as
+  separate script assets and tracked in `.kb-static-manifest.json` alongside
+  bundled `graph.js` and `graph.css`. Modifying article prose without altering
+  graph topology invalidates only the preview digest and avoids regenerating
+  unchanged graph topology or HTML files.
+
 ## Incremental manifest
 
-The destination contains `.kb-static-manifest.json`. Each source-page record binds its normalized source-relative path to the generated relative path and SHA-256 hashes. Asset records similarly bind each bundled KaTeX input to `_assets/katex/` output. A subsequent call:
+The destination contains `.kb-static-manifest.json`. Each source-page record binds its normalized source-relative path to the generated relative path and SHA-256 hashes. Asset records similarly bind each bundled KaTeX input to `_assets/katex/` and graph asset to `_assets/graph/` output. A subsequent call:
 
 - generates pages for new Markdown files;
 - regenerates pages whose content hash, expected output, or generator/template state changed;
 - refreshes page navigation when the `navigation_digest` of titles, paths,
   page types, and explicit collection edges changes;
+- updates graph data when the graph digest or preview digest changes;
 - skips pages whose inputs and generated output still match the manifest;
 - recopies a bundled asset when its source changed or its generated copy is missing or altered;
 - removes only stale HTML files explicitly owned by the prior manifest when their source Markdown was deleted;
@@ -121,9 +151,9 @@ normal per-batch step.
 ## Current boundary
 
 The local reader provides recursive page generation, relative-page navigation,
-curated collection breadcrumbs, auxiliary type indexes, optional native disclosures, code-copy controls, local
-styling, offline KaTeX formulas, and hash-based incremental rebuilds. It does
-not provide a local HTTP server, full-text search, backlinks, a relationship
-graph, authentication, public deployment, or copying of linked external
-project material. The builder is not an HTML sanitizer; render only trusted
-local knowledge content.
+curated collection breadcrumbs, auxiliary type indexes, optional native disclosures,
+code-copy controls, local styling, offline KaTeX formulas, an offline relationship
+graph (inline, overlay, and standalone `kb-navigation.html`), and hash-based
+incremental rebuilds. It does not provide a local HTTP server, full-text search,
+authentication, public deployment, or copying of linked external project material.
+The builder is not an HTML sanitizer; render only trusted local knowledge content.

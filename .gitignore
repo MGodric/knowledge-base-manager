@@ -4,6 +4,9 @@
 
 # Machine/session-local agent instructions; do not publicly track this file.
 /AGENTS.md
+/.agents/
+/.tmp.driveupload/
+
 
 # Canonical per-machine Knowledge Base Manager configuration. The normal file
 # lives under CODEX_HOME, but ignore accidental copies anywhere in this repo.

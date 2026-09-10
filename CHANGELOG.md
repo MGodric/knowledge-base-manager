@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 - 2026-09-11
+
+- Added an offline two-dimensional relationship graph built with native SVG, CSS, and zero runtime dependencies, featuring multi-parent BFS depth resolution, radial layout, and node excerpt previews.
+- Added inline graph embedding on the homepage, a full-screen overlay modal on reading pages with state synchronization, and a standalone `kb-navigation.html` full-viewport navigation page.
+- Added 1-hop ego-network focus mode with compact radial neighbor clustering, smooth camera centering on exit, and bidirectional expand/focus state preservation.
+- Added offline bilingual (Chinese and English) support with client-side environment detection and URL `?lang=` override for graph controls, table of contents, breadcrumbs, and copy buttons.
+- Extended `kb-build-static.ps1` with incremental manifest tracking for graph data and preview assets, avoiding unneeded rebuilds when graph topology is unchanged.
+
 ## 0.1.4 - 2026-09-09
 
 - Organize Promote and Project Synthesis around reader questions, retain explanations and examples, and check for missing answers separately from formatting and source metadata.

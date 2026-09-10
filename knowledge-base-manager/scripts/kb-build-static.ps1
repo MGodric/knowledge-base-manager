@@ -11,19 +11,22 @@ param(
 
     # This is intended for isolated verification fixtures. Normal Skill use
     # always reads the versioned assets shipped alongside this script.
-    [string]$KatexAssetsRoot
+    [string]$KatexAssetsRoot,
+    [string]$GraphAssetsRoot
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'kb-path-safety.ps1')
 . (Join-Path $PSScriptRoot 'kb-static-navigation.ps1')
+. (Join-Path $PSScriptRoot 'kb-static-graph.ps1')
 
 # Bump either value when generated page markup or its common template changes.
-$generatorVersion = '1.1.0'
-$templateVersion = '7'
+$generatorVersion = '1.2.0'
+$templateVersion = '9'
 $manifestName = '.kb-static-manifest.json'
 $katexAssetVersion = '0.18.1'
+$graphAssetVersion = '1.0.0'
 
 function Test-KbStaticPathInside {
     param([Parameter(Mandatory)][string]$Candidate, [Parameter(Mandatory)][string]$Base)
@@ -166,9 +169,32 @@ function Get-KbStaticKatexPrefix {
     return (('../' * $levels) + '_assets/katex')
 }
 
+function Get-KbStaticGraphPrefix {
+    param([Parameter(Mandatory)][string]$OutputRelative)
+
+    $directory = Split-Path -Parent ($OutputRelative.Replace('/', [IO.Path]::DirectorySeparatorChar))
+    if ([string]::IsNullOrWhiteSpace($directory) -or $directory -eq '.') { return './_assets/graph' }
+    $levels = @($directory -split '[\\/]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+    return (('../' * $levels) + '_assets/graph')
+}
+
+function Get-KbStaticOutputBaseUrl {
+    param([Parameter(Mandatory)][string]$OutputRelative)
+
+    $directory = Split-Path -Parent ($OutputRelative.Replace('/', [IO.Path]::DirectorySeparatorChar))
+    if ([string]::IsNullOrWhiteSpace($directory) -or $directory -eq '.') { return '.' }
+    $levels = @($directory -split '[\\/]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+    return (('../' * ($levels - 1)) + '..')
+}
+
 function New-KbStaticBreadcrumb {
-    param([Parameter(Mandatory)][string]$Title, [Parameter(Mandatory)][string]$OutputRelative,
-        [Parameter(Mandatory)]$Navigation, [string]$SourceRelative = '')
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][string]$OutputRelative,
+        [Parameter(Mandatory)]$Navigation,
+        [string]$SourceRelative = '',
+        [switch]$IsHome
+    )
 
     $rootPage = $Navigation.Pages[$Navigation.EntrySource]
     $items = [System.Collections.Generic.List[string]]::new()
@@ -196,7 +222,8 @@ function New-KbStaticBreadcrumb {
         }
     }
     $items.Add('<li><span aria-current="page">' + [System.Net.WebUtility]::HtmlEncode($Title) + '</span></li>')
-    $html = '<nav class="kb-breadcrumb" aria-label="面包屑"><ol>' + ($items -join '') + '</ol></nav>'
+    $navHtml = '<nav class="kb-breadcrumb" aria-label="面包屑"><ol>' + ($items -join '') + '</ol></nav>'
+    $html = '<div class="kb-nav-header">' + $navHtml + '<button type="button" class="kb-graph-trigger-btn" id="kb-graph-trigger" aria-label="打开关系图谱">关系图谱</button></div>'
     if ($null -ne $page -and $SourceRelative -ne $Navigation.EntrySource -and -not $connected) {
         if ($page.Parents.Count -eq 0) { $html += '<p class="kb-uncollected">尚未被项目或主题收录</p>' }
         else {
@@ -217,11 +244,91 @@ function New-KbStaticHtmlDocument {
         [Parameter(Mandatory)][string]$BodyHtml,
         [Parameter(Mandatory)][string]$OutputRelative,
         [Parameter(Mandatory)]$Navigation,
-        [string]$SourceRelative = ''
+        [string]$SourceRelative = '',
+        [switch]$IsHome,
+        [string]$PageNodeId = ''
     )
     $safeTitle = [System.Net.WebUtility]::HtmlEncode($Title)
     $katexPrefix = Get-KbStaticKatexPrefix -OutputRelative $OutputRelative
-    $breadcrumb = New-KbStaticBreadcrumb -Title $Title -OutputRelative $OutputRelative -Navigation $Navigation -SourceRelative $SourceRelative
+    $graphPrefix = Get-KbStaticGraphPrefix -OutputRelative $OutputRelative
+    $outputBaseUrl = Get-KbStaticOutputBaseUrl -OutputRelative $OutputRelative
+    $breadcrumb = New-KbStaticBreadcrumb -Title $Title -OutputRelative $OutputRelative -Navigation $Navigation -SourceRelative $SourceRelative -IsHome:$IsHome.IsPresent
+
+    $inlineGraphHtml = if ($IsHome.IsPresent) {
+        @'
+<section id="kb-graph-inline" class="kb-graph-inline kb-graph-inline-section" aria-label="知识关系图谱">
+  <div class="kb-graph-inline-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+    <h2 style="margin:0;border-bottom:none;padding-bottom:0;font-size:1.15rem;">知识关系图谱</h2>
+    <button type="button" class="kb-graph-trigger-btn" id="kb-graph-trigger-inline" aria-label="弹出大窗口浏览关系图谱" title="弹出大窗口浏览">⛶ 全屏大窗口</button>
+  </div>
+  <div id="kb-graph-app" class="kb-graph-app kb-graph-inline-container"></div>
+</section>
+'@
+    } else { '' }
+
+    $escapedNodeId = [System.Net.WebUtility]::HtmlEncode($PageNodeId)
+    $graphScript = if ($IsHome.IsPresent) {
+        [string]::Format(@'
+<script id="kb-graph-inline-script" defer>
+document.addEventListener('DOMContentLoaded', function () {{
+    var container = document.getElementById('kb-graph-app') || document.getElementById('kb-graph-container');
+    var inlineGraph = null;
+    if (container && window.mountKbGraph) {{
+        inlineGraph = window.mountKbGraph(container, {{
+            mode: 'inline',
+            outputBaseUrl: '{0}',
+            initialPageId: '{1}'
+        }});
+    }}
+    function openOverlay() {{
+        if (window.mountKbGraph && !document.querySelector('.kb-graph-mode-overlay')) {{
+            var state = (inlineGraph && typeof inlineGraph.getState === 'function') ? inlineGraph.getState() : null;
+            window.mountKbGraph(document.body, {{
+                mode: 'overlay',
+                outputBaseUrl: '{0}',
+                initialPageId: (state && state.focusedId) ? state.focusedId : '{1}',
+                initialExpanded: state ? state.expanded : null,
+                initialEgoFocusId: state ? state.egoFocusId : null,
+                onClose: function (finalState) {{
+                    if (inlineGraph && finalState && typeof inlineGraph.setState === 'function') {{
+                        inlineGraph.setState(finalState);
+                    }}
+                }}
+            }});
+        }}
+    }}
+    var trigger = document.getElementById('kb-graph-trigger');
+    if (trigger) {{
+        trigger.addEventListener('click', openOverlay);
+    }}
+    var inlineTrigger = document.getElementById('kb-graph-trigger-inline');
+    if (inlineTrigger) {{
+        inlineTrigger.addEventListener('click', openOverlay);
+    }}
+}});
+</script>
+'@, $outputBaseUrl, $escapedNodeId)
+    } else {
+        [string]::Format(@'
+<script id="kb-graph-overlay-script" defer>
+document.addEventListener('DOMContentLoaded', function () {{
+    var trigger = document.getElementById('kb-graph-trigger');
+    if (trigger) {{
+        trigger.addEventListener('click', function () {{
+            if (window.mountKbGraph && !document.querySelector('.kb-graph-mode-overlay')) {{
+                window.mountKbGraph(document.body, {{
+                    mode: 'overlay',
+                    outputBaseUrl: '{0}',
+                    initialPageId: '{1}'
+                }});
+            }}
+        }});
+    }}
+}});
+</script>
+'@, $outputBaseUrl, $escapedNodeId)
+    }
+
     $template = @'
 <!doctype html>
 <html lang="zh-CN">
@@ -247,7 +354,13 @@ blockquote{{margin:1.4rem 0;padding:.15rem 1.25rem;border-left:.2rem solid #65a9
 .markdown-alert{{margin:1rem 0;padding:.1rem 1rem;border-left:.28rem solid #60a5fa;background:#eff6ff}} .markdown-alert-title{{font-weight:700}} .markdown-alert-warning{{border-color:#f59e0b;background:#fffbeb}} .markdown-alert-important{{border-color:#a855f7;background:#faf5ff}} .markdown-alert-caution{{border-color:#ef4444;background:#fef2f2}}
 .footnotes{{font-size:.92em;border-top:1px solid #dce7f0;margin-top:2rem;color:#60758a}} .footnote-ref{{text-decoration:none}}
 hr{{border:0;border-top:1px solid #dce7f0;margin:2rem 0}} del{{color:#60758a}} img{{max-width:100%;height:auto}} .katex-display{{max-width:100%;overflow-x:auto;overflow-y:hidden;padding:.25rem 0}}
+.kb-nav-header{{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin:0 0 1.5rem}}
+.kb-nav-header .kb-breadcrumb{{margin:0}}
+.kb-nav-header .kb-breadcrumb ol{{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:0;font-size:.85rem;color:#60758a}}
 .kb-breadcrumb ol{{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:0 0 1.5rem;font-size:.85rem;color:#60758a}} .kb-breadcrumb li{{min-width:0;overflow-wrap:anywhere}} .kb-breadcrumb li+li{{margin:0}} .kb-breadcrumb li+li::before{{content:'/';margin-right:.4rem;color:#94a3b8}} .kb-breadcrumb [aria-current]{{color:#466278;overflow-wrap:anywhere}}
+.kb-graph-trigger-btn{{font:inherit;font-size:.85rem;padding:.2rem .65rem;color:#176bb0;background:#eff6ff;border:1px solid #b5d7f0;border-radius:5px;cursor:pointer;touch-action:manipulation;white-space:nowrap}}
+.kb-graph-trigger-btn:hover{{background:#dbeafe;border-color:#388bc9}}
+.kb-graph-inline-section{{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #dce7f0}}
 .kb-collections,.kb-uncollected{{font-size:.85rem;color:#60758a;margin:0 0 1.5rem}} .kb-collections p{{margin:0}} .kb-collections ul{{display:flex;flex-wrap:wrap;gap:.4rem 1rem;list-style:none;padding:0;margin:.3rem 0}} .kb-collections li+li{{margin:0}}
 details{{margin:1.4rem 0;padding:.75rem 1.1rem;border:1px solid #dce7f0;border-radius:8px;background:#fbfdff}} summary{{cursor:pointer;font-weight:650;color:#285d86}} details[open]>summary{{margin-bottom:.65rem}}
 .kb-code-tools{{display:flex;align-items:center;flex-wrap:wrap;gap:.65rem;margin:1rem 0 -.7rem}} .kb-code-tools button{{font:inherit;font-size:.85rem;padding:.25rem .65rem;color:#176bb0;background:#eff6ff;border:1px solid #b5d7f0;border-radius:5px;cursor:pointer}} .kb-code-tools button:hover{{background:#dbeafe}} .kb-code-tools button:disabled{{cursor:wait;opacity:.65}} .kb-copy-status{{font-size:.85rem;color:#60758a}}
@@ -255,12 +368,17 @@ details{{margin:1.4rem 0;padding:.75rem 1.1rem;border:1px solid #dce7f0;border-r
 @media (min-width:1100px){{body.kb-has-toc{{max-width:1320px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:2rem;align-items:start}} .kb-toc{{position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto;padding:.75rem .25rem}}}}
 @media (max-width:1099px){{body.kb-has-toc{{display:flex;flex-direction:column}} .kb-toc{{order:-1;width:100%;margin:0 0 1rem;padding:1rem;background:#f3f8fd;border:1px solid #d6e3ee;border-radius:8px}} .kb-paper{{width:100%}}}}
 @media (max-width:600px){{body{{margin:1rem auto;padding:0 .75rem}} .kb-paper{{padding:1.25rem 1.1rem 1.5rem;border-radius:10px}} .kb-content>h1:first-child{{padding:1rem}} pre{{padding:.9rem}} th,td{{padding:.5rem .65rem}}}}
-@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
+@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc,.kb-graph-trigger-btn,.kb-graph-inline-section,.kb-graph-root{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
 </style>
 <link rel="stylesheet" href="{2}/katex.min.css">
 <script defer src="{2}/katex.min.js"></script>
 <script defer src="{2}/contrib/auto-render.min.js"></script>
 <script defer>document.addEventListener('DOMContentLoaded',function(){{renderMathInElement(document.body,{{delimiters:[{{left:'\\(',right:'\\)',display:false}},{{left:'\\[',right:'\\]',display:true}}],throwOnError:false}});}});</script>
+<link rel="stylesheet" href="{4}/graph.css">
+<script defer src="{4}/graph-data.js"></script>
+<script defer src="{4}/graph-previews.js"></script>
+<script defer src="{4}/graph.js"></script>
+{5}
 <script id="kb-toc-script">
 document.addEventListener('DOMContentLoaded', function () {{
     var toc = document.getElementById('kb-toc');
@@ -294,15 +412,69 @@ document.addEventListener('DOMContentLoaded', function () {{
     document.body.classList.add('kb-has-toc');
 }});
 </script>
+<script id="kb-i18n-script">
+(function () {{
+    var isZh = (function () {{
+        if (typeof window !== 'undefined' && window.location && window.location.search) {{
+            try {{
+                var params = new URLSearchParams(window.location.search);
+                var q = params.get('lang');
+                if (q === 'en') return false;
+                if (q === 'zh') return true;
+            }} catch (e) {{}}
+        }}
+        var nav = (typeof navigator !== 'undefined' && ((navigator.languages && navigator.languages[0]) || navigator.language || navigator.userLanguage)) || '';
+        return nav.toLowerCase().startsWith('zh');
+    }})();
+    window.__KB_IS_ZH__ = isZh;
+    if (!isZh) {{
+        document.documentElement.lang = 'en';
+        document.addEventListener('DOMContentLoaded', function () {{
+            var bc = document.querySelector('.kb-breadcrumb');
+            if (bc) bc.setAttribute('aria-label', 'Breadcrumbs');
+            var tr = document.getElementById('kb-graph-trigger');
+            if (tr) {{
+                tr.textContent = 'Graph View';
+                tr.setAttribute('aria-label', 'Open Knowledge Graph');
+            }}
+            var trIn = document.getElementById('kb-graph-trigger-inline');
+            if (trIn) {{
+                trIn.textContent = '⛶ Fullscreen';
+                trIn.setAttribute('aria-label', 'Open Knowledge Graph in fullscreen');
+                trIn.setAttribute('title', 'Open fullscreen');
+            }}
+            var inSec = document.getElementById('kb-graph-inline');
+            if (inSec) {{
+                inSec.setAttribute('aria-label', 'Knowledge Graph');
+                var h2 = inSec.querySelector('h2');
+                if (h2) h2.textContent = 'Knowledge Graph';
+            }}
+            var uncoll = document.querySelector('.kb-uncollected');
+            if (uncoll) uncoll.textContent = 'Not yet collected into any project or topic';
+            var colls = document.querySelector('.kb-collections');
+            if (colls) {{
+                colls.setAttribute('aria-label', 'Collection Entries');
+                var p = colls.querySelector('p');
+                if (p) p.textContent = 'Collection Entries';
+            }}
+            var toc = document.getElementById('kb-toc');
+            if (toc) toc.setAttribute('aria-label', 'Table of Contents');
+            var tocTitle = document.querySelector('.kb-toc-title');
+            if (tocTitle) tocTitle.textContent = 'Table of Contents';
+        }});
+    }}
+}})();
+</script>
 <script id="kb-copy-script">
 document.addEventListener('DOMContentLoaded', function () {{
+    var isZh = window.__KB_IS_ZH__ !== false;
     document.querySelectorAll('pre > code').forEach(function (code) {{
         var pre = code.parentElement;
         var controls = document.createElement('div');
         controls.className = 'kb-code-tools';
         var button = document.createElement('button');
         button.type = 'button';
-        button.textContent = '复制代码';
+        button.textContent = isZh ? '复制代码' : 'Copy Code';
         var status = document.createElement('span');
         status.className = 'kb-copy-status';
         status.setAttribute('role', 'status');
@@ -318,9 +490,9 @@ document.addEventListener('DOMContentLoaded', function () {{
                 range.selectNodeContents(code);
                 selection.removeAllRanges();
                 selection.addRange(range);
-                status.textContent = '未自动复制；已选中代码，请按 Ctrl+C / Command+C 复制。';
+                status.textContent = isZh ? '未自动复制；已选中代码，请按 Ctrl+C / Command+C 复制。' : 'Not copied automatically; text selected, press Ctrl+C / Command+C to copy.';
             }} catch (error) {{
-                status.textContent = '未自动复制，请手动选中代码并按 Ctrl+C / Command+C。';
+                status.textContent = isZh ? '未自动复制，请手动选中代码并按 Ctrl+C / Command+C。' : 'Not copied automatically; please manually select code and press Ctrl+C / Command+C.';
             }}
         }}
         button.addEventListener('click', async function () {{
@@ -332,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function () {{
                     return;
                 }}
                 await navigator.clipboard.writeText(code.textContent);
-                status.textContent = '已复制代码。';
+                status.textContent = isZh ? '已复制代码。' : 'Code copied.';
             }} catch (error) {{
                 selectForManualCopy();
             }} finally {{
@@ -349,12 +521,69 @@ document.addEventListener('DOMContentLoaded', function () {{
 <div class="kb-content">
 {1}
 </div>
+{6}
 </main>
 <aside id="kb-toc" class="kb-toc" aria-label="文章目录" hidden><p class="kb-toc-title">文章目录</p></aside>
 </body>
 </html>
 '@
-    return [string]::Format($template, $safeTitle, $BodyHtml, $katexPrefix, $breadcrumb)
+    return [string]::Format($template, $safeTitle, $BodyHtml, $katexPrefix, $breadcrumb, $graphPrefix, $graphScript, $inlineGraphHtml)
+}
+
+function New-KbStaticNavigationPageHtml {
+    return @'
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知识库全景导航</title>
+<link rel="stylesheet" href="./_assets/graph/graph.css">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f3f8fc; }
+#kb-nav-app { width: 100%; height: 100%; }
+</style>
+<script id="kb-nav-i18n">
+(function () {
+    var isZh = (function () {
+        if (typeof window !== 'undefined' && window.location && window.location.search) {
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var q = params.get('lang');
+                if (q === 'en') return false;
+                if (q === 'zh') return true;
+            } catch (e) {}
+        }
+        var nav = (typeof navigator !== 'undefined' && ((navigator.languages && navigator.languages[0]) || navigator.language || navigator.userLanguage)) || '';
+        return nav.toLowerCase().startsWith('zh');
+    })();
+    if (!isZh) {
+        document.documentElement.lang = 'en';
+        document.title = 'Knowledge Base Panoramic Navigation';
+    }
+})();
+</script>
+<script defer src="./_assets/graph/graph-data.js"></script>
+<script defer src="./_assets/graph/graph-previews.js"></script>
+<script defer src="./_assets/graph/graph.js"></script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function () {
+    var container = document.getElementById('kb-nav-app');
+    if (container && window.mountKbGraph) {
+        window.mountKbGraph(container, {
+            mode: 'standalone',
+            outputBaseUrl: '.'
+        });
+    }
+});
+</script>
+</head>
+<body>
+<div id="kb-nav-app"></div>
+</body>
+</html>
+'@
 }
 
 function Get-KbStaticSafeAssetFiles {
@@ -412,6 +641,27 @@ function Get-KbStaticKatexAssetRecords {
     })
 }
 
+function Get-KbStaticGraphAssetRecords {
+    param([Parameter(Mandatory)][string]$AssetsRoot)
+
+    $assetsFull = [IO.Path]::GetFullPath($AssetsRoot)
+    $files = @(Get-KbStaticSafeAssetFiles -Root $assetsFull -Label 'bundled Graph assets')
+    foreach ($required in @('graph.css', 'graph.js')) {
+        $requiredPath = Join-Path $assetsFull ($required.Replace('/', [IO.Path]::DirectorySeparatorChar))
+        if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { throw "BLOCKER: bundled Graph asset is missing: $required" }
+    }
+    return @($files | Sort-Object FullName | ForEach-Object {
+        $relative = Get-KbStaticRelativePath -Base $assetsFull -Path $_.FullName
+        [pscustomobject][ordered]@{
+            source_path = 'assets/graph/' + $relative
+            source_relative_path = $relative
+            output_path = '_assets/graph/' + $relative
+            sha256 = Get-KbStaticSha256 -Path $_.FullName
+            full_path = $_.FullName
+        }
+    })
+}
+
 function Get-KbStaticDirectoryHash {
     param([Parameter(Mandatory)][string]$Directory, [Parameter(Mandatory)][string]$ContentRoot)
     $children = @(
@@ -427,6 +677,11 @@ try {
     $defaultKatexAssetsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'assets\katex'
     $effectiveKatexAssetsRoot = if ([string]::IsNullOrWhiteSpace($KatexAssetsRoot)) { $defaultKatexAssetsRoot } else { $KatexAssetsRoot }
     $katexAssets = @(Get-KbStaticKatexAssetRecords -AssetsRoot $effectiveKatexAssetsRoot)
+
+    $defaultGraphAssetsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'assets\graph'
+    $effectiveGraphAssetsRoot = if ([string]::IsNullOrWhiteSpace($GraphAssetsRoot)) { $defaultGraphAssetsRoot } else { $GraphAssetsRoot }
+    $graphAssets = @(Get-KbStaticGraphAssetRecords -AssetsRoot $effectiveGraphAssetsRoot)
+
     if (-not (Test-Path -LiteralPath $Root -PathType Container)) { throw "BLOCKER: knowledge-base root is not a directory: $Root" }
     $rootFull = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Root).Path).TrimEnd('\', '/')
     Assert-KbNoRedirectingReparsePoint -Path $rootFull -Label 'knowledge-base root' | Out-Null
@@ -452,6 +707,15 @@ try {
     # Validate the complete navigation graph before any destination creation or copying.
     $navigation = Get-KbStaticNavigationModel -MarkdownFiles $markdownFiles -ContentRoot $contentRoot -EntrySourcePath $entrypointFull
 
+    # Extract whole-KB GraphData and PreviewData
+    $graphModel = Get-KbGraphModel -ContentRoot $contentRoot -Navigation $navigation -MarkdownFiles $markdownFiles
+    $pageNodeIds = @{}
+    foreach ($node in $graphModel.GraphData.nodes) {
+        if ($node.kind -eq 'page') {
+            $pageNodeIds[[string]$node.page.source_path] = [string]$node.id
+        }
+    }
+
     $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
     Assert-KbNoRedirectingReparsePoint -Path $destinationFull -Label 'static-site destination' | Out-Null
     if ((Test-KbStaticPathInside -Candidate $destinationFull -Base $rootFull) -or (Test-KbStaticPathInside -Candidate $rootFull -Base $destinationFull)) {
@@ -471,15 +735,28 @@ try {
     $previousPages = @{}
     $previousDirectories = @{}
     $previousKatexAssets = @{}
+    $previousGraphAssets = @{}
+    $previousGraphDataAssets = @{}
+    $previousGraph = $null
     if ($null -ne $previous) {
         foreach ($page in @($previous.pages)) { $previousPages[[string]$page.source_path] = $page }
         foreach ($directory in @($previous.directories)) { $previousDirectories[[string]$directory.output_path] = $directory }
         if ($null -ne $previous.PSObject.Properties['katex']) {
             foreach ($asset in @($previous.katex.assets)) { $previousKatexAssets[[string]$asset.source_path] = $asset }
         }
+        if ($null -ne $previous.PSObject.Properties['graph']) {
+            $previousGraph = $previous.graph
+            if ($null -ne $previousGraph.PSObject.Properties['assets']) {
+                foreach ($asset in @($previousGraph.assets)) { $previousGraphAssets[[string]$asset.source_path] = $asset }
+            }
+            if ($null -ne $previousGraph.PSObject.Properties['data_assets']) {
+                foreach ($asset in @($previousGraph.data_assets)) { $previousGraphDataAssets[[string]$asset.output_path] = $asset }
+            }
+        }
     }
     $stateMatches = $null -ne $previous -and $previous.generator_version -eq $generatorVersion -and $previous.template_version -eq $templateVersion -and $null -ne $previous.PSObject.Properties['navigation_digest'] -and $previous.navigation_digest -eq $navigation.Digest
     $katexStateMatches = $null -ne $previous -and $null -ne $previous.PSObject.Properties['katex'] -and $previous.katex.asset_version -eq $katexAssetVersion
+    $graphStateMatches = $null -ne $previousGraph -and $previousGraph.asset_version -eq $graphAssetVersion
 
     $directories = @($contentRoot) + @(Get-ChildItem -LiteralPath $contentRoot -Recurse -Directory -Force | ForEach-Object FullName)
     $currentOutputPaths = @{}
@@ -492,8 +769,17 @@ try {
         $directoryOutput = if ([string]::IsNullOrEmpty($relative) -or $relative -eq '.') { 'index.html' } else { $relative + '/index.html' }
         $currentOutputPaths[$directoryOutput] = $true
     }
+    if ($currentOutputPaths.ContainsKey('kb-navigation.html')) {
+        throw 'BLOCKER: source contains reserved navigation page name: kb-navigation.html'
+    }
+    $currentOutputPaths['kb-navigation.html'] = $true
+
     $previousOwnedOutputs = @{}
-    foreach ($record in @($previousPages.Values) + @($previousDirectories.Values) + @($previousKatexAssets.Values)) {
+    $previousRecordsToCheck = @($previousPages.Values) + @($previousDirectories.Values) + @($previousKatexAssets.Values) + @($previousGraphAssets.Values) + @($previousGraphDataAssets.Values)
+    if ($null -ne $previousGraph -and $null -ne $previousGraph.PSObject.Properties['navigation_page'] -and $null -ne $previousGraph.navigation_page.output_path) {
+        $previousRecordsToCheck += $previousGraph.navigation_page
+    }
+    foreach ($record in $previousRecordsToCheck) {
         $relative = [string]$record.output_path
         if (-not [string]::IsNullOrWhiteSpace($relative) -and -not [IO.Path]::IsPathRooted($relative) -and $relative -notmatch '(^|[\\/])\.\.([\\/]|$)') {
             $previousOwnedOutputs[$relative] = $true
@@ -515,12 +801,30 @@ try {
             throw "BLOCKER: refusing to overwrite destination file not owned by a prior static-site manifest: $($asset.output_path)"
         }
     }
+    $graphPreflightPaths = @()
+    foreach ($asset in $graphAssets) { $graphPreflightPaths += $asset.output_path }
+    $graphPreflightPaths += '_assets/graph/graph-data.js'
+    $graphPreflightPaths += '_assets/graph/graph-previews.js'
+    foreach ($relative in $graphPreflightPaths) {
+        $candidate = [IO.Path]::GetFullPath((Join-Path $destinationFull ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))))
+        if (-not (Test-KbStaticPathInside -Candidate $candidate -Base $destinationFull)) { throw "BLOCKER: Graph asset output path escapes destination: $relative" }
+        if (Test-Path -LiteralPath $candidate -PathType Container) { throw "BLOCKER: Graph asset output is an existing directory: $relative" }
+        if ((Test-Path -LiteralPath $candidate -PathType Leaf) -and -not $previousOwnedOutputs.ContainsKey($relative)) {
+            throw "BLOCKER: refusing to overwrite destination file not owned by a prior static-site manifest: $relative"
+        }
+    }
+
     $generated = [Collections.Generic.List[string]]::new()
     $skipped = [Collections.Generic.List[string]]::new()
     $removed = [Collections.Generic.List[string]]::new()
     $assetGenerated = [Collections.Generic.List[string]]::new()
     $assetSkipped = [Collections.Generic.List[string]]::new()
     $assetRecords = [Collections.Generic.List[object]]::new()
+    $graphAssetGenerated = [Collections.Generic.List[string]]::new()
+    $graphAssetSkipped = [Collections.Generic.List[string]]::new()
+    $graphAssetRecords = [Collections.Generic.List[object]]::new()
+    $graphDataAssetRecords = [Collections.Generic.List[object]]::new()
+
     foreach ($asset in $katexAssets) {
         $outputPath = Join-Path $destinationFull ($asset.output_path.Replace('/', [IO.Path]::DirectorySeparatorChar))
         $old = if ($previousKatexAssets.ContainsKey($asset.source_path)) { $previousKatexAssets[$asset.source_path] } else { $null }
@@ -542,6 +846,104 @@ try {
         }
         $assetRecords.Add([pscustomobject][ordered]@{ source_path = $asset.source_path; output_path = $asset.output_path; sha256 = $asset.sha256; output_sha256 = $outputHash })
     }
+
+    foreach ($asset in $graphAssets) {
+        $outputPath = Join-Path $destinationFull ($asset.output_path.Replace('/', [IO.Path]::DirectorySeparatorChar))
+        $old = if ($previousGraphAssets.ContainsKey($asset.source_path)) { $previousGraphAssets[$asset.source_path] } else { $null }
+        $canSkip = -not $Force.IsPresent -and $graphStateMatches -and $null -ne $old -and $old.sha256 -eq $asset.sha256 -and $old.output_path -eq $asset.output_path -and (Test-Path -LiteralPath $outputPath -PathType Leaf)
+        if ($canSkip -and $null -ne $old.PSObject.Properties['output_sha256']) {
+            $canSkip = ([string]$old.output_sha256 -eq (Get-KbStaticSha256 -Path $outputPath))
+        }
+        if ($canSkip) {
+            $outputHash = Get-KbStaticSha256 -Path $outputPath
+            $graphAssetSkipped.Add($asset.output_path)
+        }
+        else {
+            $parent = Split-Path -Parent $outputPath
+            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+            [IO.File]::Copy($asset.full_path, $outputPath, $true)
+            $outputHash = Get-KbStaticSha256 -Path $outputPath
+            if ($outputHash -ne $asset.sha256) { throw "BLOCKER: copied Graph asset hash does not match source: $($asset.source_path)" }
+            $graphAssetGenerated.Add($asset.output_path)
+        }
+        $graphAssetRecords.Add([pscustomobject][ordered]@{ source_path = $asset.source_path; output_path = $asset.output_path; sha256 = $asset.sha256; output_sha256 = $outputHash })
+    }
+
+    # Generate or skip _assets/graph/graph-data.js
+    $graphDataOutputPath = '_assets/graph/graph-data.js'
+    $graphDataFullPath = Join-Path $destinationFull ($graphDataOutputPath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+    $oldGraphData = if ($previousGraphDataAssets.ContainsKey($graphDataOutputPath)) { $previousGraphDataAssets[$graphDataOutputPath] } else { $null }
+    $canSkipGraphData = -not $Force.IsPresent -and $null -ne $previousGraph -and $previousGraph.graph_digest -eq $graphModel.GraphData.graph_digest -and (Test-Path -LiteralPath $graphDataFullPath -PathType Leaf)
+    if ($canSkipGraphData -and $null -ne $oldGraphData -and $null -ne $oldGraphData.PSObject.Properties['output_sha256']) {
+        $canSkipGraphData = ([string]$oldGraphData.output_sha256 -eq (Get-KbStaticSha256 -Path $graphDataFullPath))
+    }
+    if ($canSkipGraphData) {
+        $graphDataOutputHash = Get-KbStaticSha256 -Path $graphDataFullPath
+        $graphAssetSkipped.Add($graphDataOutputPath)
+    }
+    else {
+        $parent = Split-Path -Parent $graphDataFullPath
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        $graphDataJs = ConvertTo-KbGraphJavaScript -GraphData $graphModel.GraphData
+        [IO.File]::WriteAllText($graphDataFullPath, $graphDataJs, [Text.UTF8Encoding]::new($false))
+        $graphDataOutputHash = Get-KbStaticSha256 -Path $graphDataFullPath
+        $graphAssetGenerated.Add($graphDataOutputPath)
+    }
+    $graphDataAssetRecords.Add([pscustomobject][ordered]@{
+        source_path = 'generated:graph-data.js'
+        output_path = $graphDataOutputPath
+        output_sha256 = $graphDataOutputHash
+    })
+
+    # Generate or skip _assets/graph/graph-previews.js
+    $graphPreviewsOutputPath = '_assets/graph/graph-previews.js'
+    $graphPreviewsFullPath = Join-Path $destinationFull ($graphPreviewsOutputPath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+    $oldGraphPreviews = if ($previousGraphDataAssets.ContainsKey($graphPreviewsOutputPath)) { $previousGraphDataAssets[$graphPreviewsOutputPath] } else { $null }
+    $canSkipGraphPreviews = -not $Force.IsPresent -and $null -ne $previousGraph -and $previousGraph.preview_digest -eq $graphModel.PreviewData.preview_digest -and (Test-Path -LiteralPath $graphPreviewsFullPath -PathType Leaf)
+    if ($canSkipGraphPreviews -and $null -ne $oldGraphPreviews -and $null -ne $oldGraphPreviews.PSObject.Properties['output_sha256']) {
+        $canSkipGraphPreviews = ([string]$oldGraphPreviews.output_sha256 -eq (Get-KbStaticSha256 -Path $graphPreviewsFullPath))
+    }
+    if ($canSkipGraphPreviews) {
+        $graphPreviewsOutputHash = Get-KbStaticSha256 -Path $graphPreviewsFullPath
+        $graphAssetSkipped.Add($graphPreviewsOutputPath)
+    }
+    else {
+        $parent = Split-Path -Parent $graphPreviewsFullPath
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        $graphPreviewsJs = ConvertTo-KbGraphPreviewsJavaScript -PreviewData $graphModel.PreviewData
+        [IO.File]::WriteAllText($graphPreviewsFullPath, $graphPreviewsJs, [Text.UTF8Encoding]::new($false))
+        $graphPreviewsOutputHash = Get-KbStaticSha256 -Path $graphPreviewsFullPath
+        $graphAssetGenerated.Add($graphPreviewsOutputPath)
+    }
+    $graphDataAssetRecords.Add([pscustomobject][ordered]@{
+        source_path = 'generated:graph-previews.js'
+        output_path = $graphPreviewsOutputPath
+        output_sha256 = $graphPreviewsOutputHash
+    })
+
+    # Generate or skip kb-navigation.html
+    $navPageOutputPath = 'kb-navigation.html'
+    $navPageFullPath = Join-Path $destinationFull $navPageOutputPath
+    $oldNavPage = if ($null -ne $previousGraph -and $null -ne $previousGraph.PSObject.Properties['navigation_page']) { $previousGraph.navigation_page } else { $null }
+    $canSkipNavPage = -not $Force.IsPresent -and $stateMatches -and $null -ne $oldNavPage -and $oldNavPage.output_path -eq $navPageOutputPath -and (Test-Path -LiteralPath $navPageFullPath -PathType Leaf)
+    if ($canSkipNavPage -and $null -ne $oldNavPage.PSObject.Properties['output_sha256']) {
+        $canSkipNavPage = ([string]$oldNavPage.output_sha256 -eq (Get-KbStaticSha256 -Path $navPageFullPath))
+    }
+    if ($canSkipNavPage) {
+        $navPageOutputHash = Get-KbStaticSha256 -Path $navPageFullPath
+        $skipped.Add($navPageOutputPath)
+    }
+    else {
+        $navPageHtml = New-KbStaticNavigationPageHtml
+        [IO.File]::WriteAllText($navPageFullPath, $navPageHtml, [Text.UTF8Encoding]::new($false))
+        $navPageOutputHash = Get-KbStaticSha256 -Path $navPageFullPath
+        $generated.Add($navPageOutputPath)
+    }
+    $navigationPageRecord = [pscustomobject][ordered]@{
+        output_path = $navPageOutputPath
+        output_sha256 = $navPageOutputHash
+    }
+
     $pageRecords = [Collections.Generic.List[object]]::new()
     foreach ($file in $markdownFiles) {
         $sourceRelative = Get-KbStaticRelativePath -Base $contentRoot -Path $file.FullName
@@ -563,8 +965,11 @@ try {
             $body = Get-KbStaticBody -Text $markdown
             $rewritten = Convert-KbStaticLinks -Markdown $body -SourceFile $file.FullName -ContentRoot $contentRoot
             $rendered = ConvertFrom-Markdown -InputObject $rewritten
+            $ownerPageId = if ($pageNodeIds.ContainsKey($sourceRelative)) { $pageNodeIds[$sourceRelative] } else { '' }
+            $anchorResult = Update-KbHeadingAnchors -Html $rendered.Html -OwnerPageId $ownerPageId -SourcePath $sourceRelative
+            $isHome = ($sourceRelative -eq $entrypointRelative)
             $title = $navigation.Pages[$sourceRelative].Title
-            $html = New-KbStaticHtmlDocument -Title $title -BodyHtml $rendered.Html -OutputRelative $outputRelative -Navigation $navigation -SourceRelative $sourceRelative
+            $html = New-KbStaticHtmlDocument -Title $title -BodyHtml $anchorResult.Html -OutputRelative $outputRelative -Navigation $navigation -SourceRelative $sourceRelative -IsHome:$isHome -PageNodeId $ownerPageId
             $parent = Split-Path -Parent $outputPath
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             [IO.File]::WriteAllText($outputPath, $html, [Text.UTF8Encoding]::new($false))
@@ -613,7 +1018,7 @@ try {
                 $items.Add('<li><a href="' + [System.Net.WebUtility]::HtmlEncode($href) + '">' + [System.Net.WebUtility]::HtmlEncode($label) + '</a></li>')
             }
             $heading = if ([string]::IsNullOrEmpty($directoryRelative) -or $directoryRelative -eq '.') { '文件目录' } elseif ($isTypeDirectory) { $directoryTitles[$directoryRelative] } else { Split-Path -Leaf $directory }
-            $html = New-KbStaticHtmlDocument -Title $heading -BodyHtml ('<h1>' + [System.Net.WebUtility]::HtmlEncode($heading) + '</h1><ul>' + ($items -join "`n") + '</ul>') -OutputRelative $outputRelative -Navigation $navigation
+            $html = New-KbStaticHtmlDocument -Title $heading -BodyHtml ('<h1>' + [System.Net.WebUtility]::HtmlEncode($heading) + '</h1><ul>' + ($items -join "`n") + '</ul>') -OutputRelative $outputRelative -Navigation $navigation -IsHome:$false -PageNodeId ''
             $parent = Split-Path -Parent $outputPath
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             [IO.File]::WriteAllText($outputPath, $html, [Text.UTF8Encoding]::new($false))
@@ -658,12 +1063,44 @@ try {
         $removed.Add($relative)
     }
 
+    $currentGraphSources = @{}
+    foreach ($asset in $graphAssets) { $currentGraphSources[$asset.source_path] = $true }
+    foreach ($oldAsset in $previousGraphAssets.Values) {
+        if ($currentGraphSources.ContainsKey([string]$oldAsset.source_path)) { continue }
+        $relative = [string]$oldAsset.output_path
+        if ([string]::IsNullOrWhiteSpace($relative) -or $relative -notmatch '^_assets/graph(?:/|$)' -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') { continue }
+        $candidate = [IO.Path]::GetFullPath((Join-Path $destinationFull ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))))
+        if (-not (Test-KbStaticPathInside -Candidate $candidate -Base $destinationFull) -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        if ($null -eq $oldAsset.PSObject.Properties['output_sha256'] -or [string]::IsNullOrWhiteSpace([string]$oldAsset.output_sha256)) { continue }
+        if ((Get-KbStaticSha256 -Path $candidate) -ne [string]$oldAsset.output_sha256) { continue }
+        Remove-Item -LiteralPath $candidate -Force
+        $removed.Add($relative)
+    }
+
     $newManifest = [pscustomobject][ordered]@{
-        schema = 'knowledge-base-static-site'; schema_version = 1; generator_version = $generatorVersion; template_version = $templateVersion
+        schema = 'knowledge-base-static-site'
+        schema_version = 1
+        generator_version = $generatorVersion
+        template_version = $templateVersion
         navigation_digest = $navigation.Digest
-        root_content_dir = $contentRoot; entry_source_path = $entrypointRelative; entry_output_path = $entryOutputRelative; generated_utc = [DateTime]::UtcNow.ToString('o')
-        katex = [pscustomobject][ordered]@{ asset_version = $katexAssetVersion; assets = @($assetRecords | Sort-Object source_path) }
-        pages = @($pageRecords | Sort-Object source_path); directories = @($directoryRecords | Sort-Object output_path)
+        root_content_dir = $contentRoot
+        entry_source_path = $entrypointRelative
+        entry_output_path = $entryOutputRelative
+        generated_utc = [DateTime]::UtcNow.ToString('o')
+        katex = [pscustomobject][ordered]@{
+            asset_version = $katexAssetVersion
+            assets = @($assetRecords | Sort-Object source_path)
+        }
+        graph = [pscustomobject][ordered]@{
+            asset_version = $graphAssetVersion
+            graph_digest = $graphModel.GraphData.graph_digest
+            preview_digest = $graphModel.PreviewData.preview_digest
+            navigation_page = $navigationPageRecord
+            assets = @($graphAssetRecords | Sort-Object source_path)
+            data_assets = @($graphDataAssetRecords | Sort-Object output_path)
+        }
+        pages = @($pageRecords | Sort-Object source_path)
+        directories = @($directoryRecords | Sort-Object output_path)
     }
     $newManifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8 -NoNewline
     [pscustomobject][ordered]@{
@@ -672,6 +1109,7 @@ try {
         force_rebuild = [bool]$Force.IsPresent
         generated = $generated.Count; generated_paths = @($generated); skipped = $skipped.Count; skipped_paths = @($skipped); removed = $removed.Count; removed_paths = @($removed)
         assets_generated = $assetGenerated.Count; assets_generated_paths = @($assetGenerated); assets_skipped = $assetSkipped.Count; assets_skipped_paths = @($assetSkipped)
+        graph_assets_generated = $graphAssetGenerated.Count; graph_assets_generated_paths = @($graphAssetGenerated); graph_assets_skipped = $graphAssetSkipped.Count; graph_assets_skipped_paths = @($graphAssetSkipped)
     } | ConvertTo-Json -Depth 6
 }
 catch {

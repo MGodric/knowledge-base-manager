@@ -4,6 +4,8 @@ param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $builder = Join-Path $projectRoot 'knowledge-base-manager\scripts\kb-build-static.ps1'
@@ -34,11 +36,13 @@ function Invoke-Builder {
         [string]$Root,
         [string]$Destination,
         [string]$KatexAssets,
+        [string]$GraphAssets,
         [string]$Builder = $script:builder,
         [switch]$Force
     )
     $arguments = @('-NoProfile', '-File', $Builder, '-Root', $Root, '-Destination', $Destination)
     if (-not [string]::IsNullOrWhiteSpace($KatexAssets)) { $arguments += @('-KatexAssetsRoot', $KatexAssets) }
+    if (-not [string]::IsNullOrWhiteSpace($GraphAssets)) { $arguments += @('-GraphAssetsRoot', $GraphAssets) }
     if ($Force.IsPresent) { $arguments += '-Force' }
     $raw = & $shell @arguments
     return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Data = (($raw -join "`n") | ConvertFrom-Json); Raw = $raw }
@@ -116,6 +120,8 @@ Get-Item
 ## 小节
 
 [返回](../index.md)
+
+<h2>无ID小节</h2>
 '@
     $sourceBefore = [IO.File]::ReadAllBytes($entryPath)
 
@@ -125,12 +131,19 @@ Get-Item
     Assert-True ((Test-Path -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -PathType Leaf)) 'destination must contain its fixed machine-readable manifest'
     $manifest = Get-Content -LiteralPath (Join-Path $destination '.kb-static-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.schema -eq 'knowledge-base-static-site' -and $manifest.schema_version -eq 1) 'manifest must expose a stable schema/version'
-    Assert-True ($manifest.template_version -eq '7') 'manifest must identify the curated-navigation template version'
+    Assert-True ($manifest.template_version -eq '9') 'manifest must identify the curated-navigation template version'
     Assert-True ($manifest.entry_output_path -eq 'index.html' -and $first.Data.entry_page -eq (Join-Path $destination 'index.html')) 'result and manifest must identify the generated entry page'
     Assert-True (@($manifest.pages).Count -eq 2) 'manifest must record every Markdown source recursively'
     Assert-True ($manifest.katex.asset_version -eq '0.18.1' -and @($manifest.katex.assets).Count -eq 4) 'manifest must record the fixed KaTeX version and every copied asset'
     Assert-True ((@($manifest.katex.assets | Where-Object output_path -eq '_assets/katex/fonts/KaTeX_Main-Regular.woff2')[0].sha256 -match '^[0-9a-f]{64}$')) 'KaTeX asset records must include source SHA-256'
     Assert-True ((@($manifest.katex.assets | Where-Object source_path -eq 'assets/katex/katex.min.js')[0].output_path -eq '_assets/katex/katex.min.js') -and (@($manifest.katex.assets | Where-Object source_path -eq 'assets/katex/katex.min.js')[0].source_path -notmatch '^[A-Za-z]:') ) 'KaTeX manifest paths must be portable relative source and output paths'
+    Assert-True ($manifest.graph.asset_version -eq '1.0.0') 'manifest must record graph asset version'
+    Assert-True ($manifest.graph.graph_digest -match '^[0-9a-f]{64}$') 'manifest must record graph_digest'
+    Assert-True ($manifest.graph.preview_digest -match '^[0-9a-f]{64}$') 'manifest must record preview_digest'
+    Assert-True ($manifest.graph.navigation_page.output_path -eq 'kb-navigation.html') 'manifest must record navigation_page'
+    Assert-True ($manifest.graph.navigation_page.output_sha256 -match '^[0-9a-f]{64}$') 'manifest must record navigation_page sha256'
+    Assert-True (@($manifest.graph.assets).Count -ge 2) 'manifest must record graph assets'
+    Assert-True (@($manifest.graph.data_assets).Count -eq 2) 'manifest must record graph data assets'
     Assert-True ((@($manifest.pages | Where-Object source_path -eq '资料 空格/条目 中文.md')[0].sha256 -match '^[0-9a-f]{64}$')) 'page records must include source SHA-256'
     Assert-True ((@($manifest.pages | Where-Object source_path -eq '资料 空格/条目 中文.md')[0].output_sha256 -match '^[0-9a-f]{64}$')) 'page records must include output SHA-256'
     $indexHtml = Get-Content -LiteralPath (Join-Path $destination 'index.html') -Raw -Encoding UTF8
@@ -139,12 +152,12 @@ Get-Item
     foreach ($themedPage in @($indexHtml, $entryHtml)) {
         Assert-True ([regex]::Matches($themedPage, '<style id="kb-theme">').Count -eq 1) 'each page must carry exactly one embedded theme without a CSS asset dependency'
         Assert-True ($themedPage.Contains('<script id="kb-toc-script">') -and $themedPage.Contains('<aside id="kb-toc" class="kb-toc" aria-label="文章目录" hidden>')) 'article navigation must be bundled and initially hidden for script-free reading'
-        Assert-True ($themedPage -match '(?s)<main class="kb-paper">.*?<nav class="kb-breadcrumb".*?<div class="kb-content">.*?</div>\s*</main>') 'both root and nested pages must wrap navigation and rendered content in the themed paper'
+        Assert-True ($themedPage -match '(?s)<main class="kb-paper">.*?<nav class="kb-breadcrumb".*?<div class="kb-content">.*?</div>.*?</main>') 'both root and nested pages must wrap navigation and rendered content in the themed paper'
     }
     Assert-True ($indexHtml -match '(?i)^<!doctype html>' -and $indexHtml -match '<html') 'output must be a complete directly browsable HTML page'
     Assert-True ($indexHtml -match 'href="[^"]+\.html#' -and $indexHtml -notmatch '\.md(?:[?#\"])') 'ordinary relative Markdown links must be rewritten to HTML links'
     Assert-True ($indexHtml -match 'href="[^"]+index\.html"') 'directory links must resolve to a generated directory index'
-    Assert-True ($entryHtml -match '<h1[^>]*>中文条目</h1>' -and $entryHtml -notmatch 'kb-20260831-entry') 'opening YAML front matter must not be rendered'
+    Assert-True ($entryHtml -match '<h1[^>]*>中文条目</h1>' -and ([regex]::Match($entryHtml, '(?s)<div class="kb-content">.*?</div>').Value -notmatch 'kb-20260831-entry')) 'opening YAML front matter must not be rendered'
     Assert-True ($entryHtml -match 'href="\.\./index\.html"') 'nested relative Markdown links must be rewritten'
     Assert-True ($entryHtml -match '(?is)<table.*?<thead>.*?<th[^>]*style="text-align: left;"[^>]*>项目</th>.*?<th[^>]*style="text-align: right;"[^>]*>状态</th>.*?<tbody>.*?</table>') 'aligned Markdown tables must render as semantic table HTML'
     Assert-True ($entryHtml -match '(?is)<table.*?href="\.\./index\.html".*?</table>' -and $entryHtml -notmatch '(?is)<table.*?\.md.*?</table>') 'inline internal Markdown links inside tables must be rewritten to HTML links'
@@ -164,11 +177,25 @@ Get-Item
     Assert-True ($entryHtml -match 'class="math"' -and $entryHtml.Contains('\(') -and $entryHtml.Contains('\[')) 'PowerShell Markdown math markers must remain available to KaTeX auto-render'
     Assert-True ($entryHtml.Contains('throwOnError:false') -and $entryHtml.Contains("left:'\\('") -and $entryHtml.Contains("left:'\\['")) 'auto-render must use only the Markdown renderer math delimiters and tolerate errors'
     Assert-True ((Get-Content -LiteralPath (Join-Path $destination '_assets\katex\katex.min.js') -Raw -Encoding UTF8) -eq 'fake katex javascript') 'KaTeX assets must be copied into the static output'
+    Assert-True ($indexHtml.Contains('id="kb-graph-inline"') -and $indexHtml.Contains('id="kb-graph-app"')) 'index page must embed inline graph below body'
+    Assert-True ($indexHtml.Contains("mode: 'inline'") -and ($indexHtml.Contains('outputBaseUrl: "."') -or $indexHtml.Contains("outputBaseUrl: '.'"))) 'index page must initialize inline graph'
+    Assert-True ($indexHtml.Contains('id="kb-graph-trigger-inline"') -and $indexHtml.Contains('全屏大窗口')) 'index page must provide popup button for large window graph'
+    Assert-True ($entryHtml.Contains('id="kb-graph-trigger"') -and $entryHtml.Contains('关系图谱')) 'nested page nav header must provide graph overlay button'
+    Assert-True ($entryHtml.Contains('id="kb-graph-overlay-script"') -and $entryHtml.Contains("mode: 'overlay'")) 'nested page must configure graph overlay'
+    Assert-True ($entryHtml.Contains('outputBaseUrl: ".."') -or $entryHtml.Contains("outputBaseUrl: '..'")) 'nested page must mount overlay with depth-relative outputBaseUrl'
+    Assert-True ((Test-Path -LiteralPath (Join-Path $destination 'kb-navigation.html') -PathType Leaf)) 'standalone navigation page must be generated'
+    $navPageHtml = Get-Content -LiteralPath (Join-Path $destination 'kb-navigation.html') -Raw -Encoding UTF8
+    Assert-True ($navPageHtml.Contains('id="kb-nav-app"') -and $navPageHtml.Contains("mode: 'standalone'") -and $navPageHtml.Contains("outputBaseUrl: '.'")) 'navigation page must mount standalone graph'
+    Assert-True ((Test-Path -LiteralPath (Join-Path $destination '_assets\graph\graph.css') -PathType Leaf)) 'bundled graph.css must be copied'
+    Assert-True ((Test-Path -LiteralPath (Join-Path $destination '_assets\graph\graph.js') -PathType Leaf)) 'bundled graph.js must be copied'
+    Assert-True ((Test-Path -LiteralPath (Join-Path $destination '_assets\graph\graph-data.js') -PathType Leaf)) 'graph-data.js must be generated'
+    Assert-True ((Test-Path -LiteralPath (Join-Path $destination '_assets\graph\graph-previews.js') -PathType Leaf)) 'graph-previews.js must be generated'
+    Assert-True ($entryHtml -match 'id="kb-heading-1"') 'heading anchors must be unified by Update-KbHeadingAnchors'
     $sourceAfter = [IO.File]::ReadAllBytes($entryPath)
     Assert-True ($sourceBefore.Length -eq $sourceAfter.Length -and -not (Compare-Object $sourceBefore $sourceAfter)) 'source Markdown must remain byte-identical'
 
     $second = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
-    Assert-True ($second.ExitCode -eq 0 -and -not $second.Data.force_rebuild -and $second.Data.generated -eq 0 -and $second.Data.skipped -ge 3 -and $second.Data.assets_generated -eq 0 -and $second.Data.assets_skipped -eq 4) 'unchanged pages and intact KaTeX assets must be skipped'
+    Assert-True ($second.ExitCode -eq 0 -and -not $second.Data.force_rebuild -and $second.Data.generated -eq 0 -and $second.Data.skipped -ge 3 -and $second.Data.assets_generated -eq 0 -and $second.Data.assets_skipped -eq 4 -and $second.Data.graph_assets_generated -eq 0 -and $second.Data.graph_assets_skipped -ge 4) 'unchanged pages, intact KaTeX assets, and intact graph assets must be skipped'
 
     # Separate hierarchy fixture leaves the existing incremental-count tests intact.
     $navKb = Join-Path $testRoot 'navigation kb'
@@ -205,9 +232,10 @@ Get-Item
     $forceExtra = Join-Path $destination 'force-preserve.txt'
     Write-Utf8 $forceExtra 'unrelated destination file'
     $forced = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets -Force
-    $managedPageCount = @($manifest.pages).Count + @($manifest.directories).Count
+    $managedPageCount = @($manifest.pages).Count + @($manifest.directories).Count + 1
     Assert-True ($forced.ExitCode -eq 0 -and $forced.Data.force_rebuild -and $forced.Data.generated -eq $managedPageCount -and $forced.Data.skipped -eq 0) '-Force must regenerate every managed Markdown and directory page'
     Assert-True ($forced.Data.assets_generated -eq 4 -and $forced.Data.assets_skipped -eq 0) '-Force must recopy every current KaTeX asset'
+    Assert-True ($forced.Data.graph_assets_generated -ge 4 -and $forced.Data.graph_assets_skipped -eq 0) '-Force must regenerate graph data and recopy graph assets'
     Assert-True ((Test-Path -LiteralPath $forceExtra -PathType Leaf) -and (Get-Content -LiteralPath $forceExtra -Raw -Encoding UTF8) -eq 'unrelated destination file') '-Force must preserve unrelated destination files'
 
     Remove-Item -LiteralPath (Join-Path $destination '_assets\katex\fonts\KaTeX_Main-Regular.woff2') -Force
@@ -234,6 +262,14 @@ Get-Item
     [IO.File]::WriteAllText($entryHtmlPath, 'tampered', [Text.UTF8Encoding]::new($false))
     $tampered = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
     Assert-True ($tampered.ExitCode -eq 0 -and $tampered.Data.generated -eq 1 -and ($tampered.Data.generated_paths -contains '资料 空格/条目 中文.html')) 'tampered generated output must be rebuilt even when Markdown is unchanged'
+
+    [IO.File]::WriteAllText((Join-Path $destination 'kb-navigation.html'), 'tampered nav page', [Text.UTF8Encoding]::new($false))
+    $tamperedNav = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
+    Assert-True ($tamperedNav.ExitCode -eq 0 -and $tamperedNav.Data.generated -eq 1 -and ($tamperedNav.Data.generated_paths -contains 'kb-navigation.html')) 'tampered kb-navigation.html must be regenerated without rebuilding unchanged pages'
+
+    [IO.File]::WriteAllText((Join-Path $destination '_assets\graph\graph-data.js'), 'tampered graph data', [Text.UTF8Encoding]::new($false))
+    $tamperedGraphData = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
+    Assert-True ($tamperedGraphData.ExitCode -eq 0 -and $tamperedGraphData.Data.graph_assets_generated -ge 1 -and ($tamperedGraphData.Data.graph_assets_generated_paths -contains '_assets/graph/graph-data.js')) 'tampered graph data script must be regenerated'
 
     $entryItem = Get-Item -LiteralPath $entryPath
     $originalMtime = $entryItem.LastWriteTimeUtc
@@ -274,6 +310,26 @@ Get-Item
     Write-Utf8 $conflictingAsset 'user-owned KaTeX asset'
     $assetConflict = Invoke-Builder -Root $conflictKb -Destination $assetConflictDestination -KatexAssets $katexAssets
     Assert-True ($assetConflict.ExitCode -eq 2 -and $assetConflict.Data.status -eq 'blocked' -and (Get-Content -LiteralPath $conflictingAsset -Raw -Encoding UTF8) -eq 'user-owned KaTeX asset') 'first build must reject an unowned KaTeX asset path conflict'
+
+    $graphConflictDestination = Join-Path $testRoot 'graph conflict destination'
+    $conflictingGraphAsset = Join-Path $graphConflictDestination '_assets\graph\graph.css'
+    Write-Utf8 $conflictingGraphAsset 'user-owned graph asset'
+    $graphConflict = Invoke-Builder -Root $conflictKb -Destination $graphConflictDestination -KatexAssets $katexAssets
+    Assert-True ($graphConflict.ExitCode -eq 2 -and $graphConflict.Data.status -eq 'blocked' -and (Get-Content -LiteralPath $conflictingGraphAsset -Raw -Encoding UTF8) -eq 'user-owned graph asset') 'first build must reject an unowned graph asset path conflict'
+
+    $navConflictDestination = Join-Path $testRoot 'nav conflict destination'
+    $conflictingNav = Join-Path $navConflictDestination 'kb-navigation.html'
+    Write-Utf8 $conflictingNav 'user-owned navigation page'
+    $navConflict = Invoke-Builder -Root $conflictKb -Destination $navConflictDestination -KatexAssets $katexAssets
+    Assert-True ($navConflict.ExitCode -eq 2 -and $navConflict.Data.status -eq 'blocked' -and (Get-Content -LiteralPath $conflictingNav -Raw -Encoding UTF8) -eq 'user-owned navigation page') 'first build must reject an unowned kb-navigation.html conflict'
+
+    $reservedKb = Join-Path $testRoot 'reserved nav kb'
+    $reservedDestination = Join-Path $testRoot 'reserved nav destination'
+    Write-Utf8 (Join-Path $reservedKb 'kb.yaml') "schema_version: 1`ncontent_dir: content`nentrypoint: content/index.md`n"
+    Write-Utf8 (Join-Path $reservedKb 'content\index.md') '# Home'
+    Write-Utf8 (Join-Path $reservedKb 'content\kb-navigation.md') '# Reserved Conflict'
+    $reservedConflict = Invoke-Builder -Root $reservedKb -Destination $reservedDestination -KatexAssets $katexAssets
+    Assert-True ($reservedConflict.ExitCode -eq 2 -and $reservedConflict.Data.status -eq 'blocked' -and $reservedConflict.Data.message -match 'reserved navigation page name') 'source markdown named kb-navigation.md must be blocked'
 
     $inside = Invoke-Builder -Root $kb -Destination (Join-Path $kb 'static') -KatexAssets $katexAssets
     Assert-True ($inside.ExitCode -eq 2 -and $inside.Data.status -eq 'blocked') 'destination inside the knowledge base must be rejected'

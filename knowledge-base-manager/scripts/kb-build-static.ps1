@@ -193,7 +193,8 @@ function New-KbStaticBreadcrumb {
         [Parameter(Mandatory)][string]$OutputRelative,
         [Parameter(Mandatory)]$Navigation,
         [string]$SourceRelative = '',
-        [switch]$IsHome
+        [switch]$IsHome,
+        [int]$InboxCount = 0
     )
 
     $rootPage = $Navigation.Pages[$Navigation.EntrySource]
@@ -223,7 +224,13 @@ function New-KbStaticBreadcrumb {
     }
     $items.Add('<li><span aria-current="page">' + [System.Net.WebUtility]::HtmlEncode($Title) + '</span></li>')
     $navHtml = '<nav class="kb-breadcrumb" aria-label="面包屑"><ol>' + ($items -join '') + '</ol></nav>'
-    $html = '<div class="kb-nav-header">' + $navHtml + '<button type="button" class="kb-graph-trigger-btn" id="kb-graph-trigger" aria-label="打开关系图谱">关系图谱</button></div>'
+    $badgeClass = if ($InboxCount -gt 0) { 'kb-inbox-badge-active' } else { 'kb-inbox-badge-empty' }
+    $inboxLink = if ($IsHome.IsPresent) {
+        $inboxHref = [System.Net.WebUtility]::HtmlEncode((Get-KbStaticNavigationHref -FromOutput $OutputRelative -ToOutput 'inbox/index.html'))
+        '<a href="' + $inboxHref + '" class="kb-inbox-trigger-btn" id="kb-inbox-trigger" aria-label="查看收件箱"><span>收件箱</span><span class="kb-inbox-badge ' + $badgeClass + '">' + $InboxCount + '</span></a>'
+    } else { '' }
+    $actionsHtml = '<div class="kb-nav-actions"><button type="button" class="kb-graph-trigger-btn" id="kb-graph-trigger" aria-label="打开关系图谱">关系图谱</button>' + $inboxLink + '</div>'
+    $html = '<div class="kb-nav-header">' + $navHtml + $actionsHtml + '</div>'
     if ($null -ne $page -and $SourceRelative -ne $Navigation.EntrySource -and -not $connected) {
         if ($page.Parents.Count -eq 0) { $html += '<p class="kb-uncollected">尚未被项目或主题收录</p>' }
         else {
@@ -246,13 +253,14 @@ function New-KbStaticHtmlDocument {
         [Parameter(Mandatory)]$Navigation,
         [string]$SourceRelative = '',
         [switch]$IsHome,
-        [string]$PageNodeId = ''
+        [string]$PageNodeId = '',
+        [int]$InboxCount = 0
     )
     $safeTitle = [System.Net.WebUtility]::HtmlEncode($Title)
     $katexPrefix = Get-KbStaticKatexPrefix -OutputRelative $OutputRelative
     $graphPrefix = Get-KbStaticGraphPrefix -OutputRelative $OutputRelative
     $outputBaseUrl = Get-KbStaticOutputBaseUrl -OutputRelative $OutputRelative
-    $breadcrumb = New-KbStaticBreadcrumb -Title $Title -OutputRelative $OutputRelative -Navigation $Navigation -SourceRelative $SourceRelative -IsHome:$IsHome.IsPresent
+    $breadcrumb = New-KbStaticBreadcrumb -Title $Title -OutputRelative $OutputRelative -Navigation $Navigation -SourceRelative $SourceRelative -IsHome:$IsHome.IsPresent -InboxCount $InboxCount
 
     $inlineGraphHtml = if ($IsHome.IsPresent) {
         @'
@@ -358,8 +366,14 @@ hr{{border:0;border-top:1px solid #dce7f0;margin:2rem 0}} del{{color:#60758a}} i
 .kb-nav-header .kb-breadcrumb{{margin:0}}
 .kb-nav-header .kb-breadcrumb ol{{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:0;font-size:.85rem;color:#60758a}}
 .kb-breadcrumb ol{{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:0 0 1.5rem;font-size:.85rem;color:#60758a}} .kb-breadcrumb li{{min-width:0;overflow-wrap:anywhere}} .kb-breadcrumb li+li{{margin:0}} .kb-breadcrumb li+li::before{{content:'/';margin-right:.4rem;color:#94a3b8}} .kb-breadcrumb [aria-current]{{color:#466278;overflow-wrap:anywhere}}
+.kb-nav-actions{{display:flex;align-items:center;gap:.6rem}}
 .kb-graph-trigger-btn{{font:inherit;font-size:.85rem;padding:.2rem .65rem;color:#176bb0;background:#eff6ff;border:1px solid #b5d7f0;border-radius:5px;cursor:pointer;touch-action:manipulation;white-space:nowrap}}
 .kb-graph-trigger-btn:hover{{background:#dbeafe;border-color:#388bc9}}
+.kb-inbox-trigger-btn{{position:relative;display:inline-flex;align-items:center;font:inherit;font-size:.85rem;padding:.2rem .7rem;color:#176bb0;background:#eff6ff;border:1px solid #b5d7f0;border-radius:5px;cursor:pointer;text-decoration:none;touch-action:manipulation;white-space:nowrap}}
+.kb-inbox-trigger-btn:hover{{background:#dbeafe;border-color:#388bc9;text-decoration:none}}
+.kb-inbox-badge{{position:absolute;top:-6px;right:-6px;display:flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 3px;border-radius:50%;font-size:10px;font-weight:700;line-height:1;box-shadow:0 0 0 1.5px #fff}}
+.kb-inbox-badge-empty{{background:#94a3b8;color:#ffffff}}
+.kb-inbox-badge-active{{background:#ef4444;color:#ffffff}}
 .kb-graph-inline-section{{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #dce7f0}}
 .kb-collections,.kb-uncollected{{font-size:.85rem;color:#60758a;margin:0 0 1.5rem}} .kb-collections p{{margin:0}} .kb-collections ul{{display:flex;flex-wrap:wrap;gap:.4rem 1rem;list-style:none;padding:0;margin:.3rem 0}} .kb-collections li+li{{margin:0}}
 details{{margin:1.4rem 0;padding:.75rem 1.1rem;border:1px solid #dce7f0;border-radius:8px;background:#fbfdff}} summary{{cursor:pointer;font-weight:650;color:#285d86}} details[open]>summary{{margin-bottom:.65rem}}
@@ -368,7 +382,7 @@ details{{margin:1.4rem 0;padding:.75rem 1.1rem;border:1px solid #dce7f0;border-r
 @media (min-width:1100px){{body.kb-has-toc{{max-width:1320px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:2rem;align-items:start}} .kb-toc{{position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto;padding:.75rem .25rem}}}}
 @media (max-width:1099px){{body.kb-has-toc{{display:flex;flex-direction:column}} .kb-toc{{order:-1;width:100%;margin:0 0 1rem;padding:1rem;background:#f3f8fd;border:1px solid #d6e3ee;border-radius:8px}} .kb-paper{{width:100%}}}}
 @media (max-width:600px){{body{{margin:1rem auto;padding:0 .75rem}} .kb-paper{{padding:1.25rem 1.1rem 1.5rem;border-radius:10px}} .kb-content>h1:first-child{{padding:1rem}} pre{{padding:.9rem}} th,td{{padding:.5rem .65rem}}}}
-@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc,.kb-graph-trigger-btn,.kb-graph-inline-section,.kb-graph-root{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
+@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc,.kb-graph-trigger-btn,.kb-inbox-trigger-btn,.kb-graph-inline-section,.kb-graph-root{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
 </style>
 <link rel="stylesheet" href="{2}/katex.min.css">
 <script defer src="{2}/katex.min.js"></script>
@@ -436,6 +450,12 @@ document.addEventListener('DOMContentLoaded', function () {{
             if (tr) {{
                 tr.textContent = 'Graph View';
                 tr.setAttribute('aria-label', 'Open Knowledge Graph');
+            }}
+            var inb = document.getElementById('kb-inbox-trigger');
+            if (inb) {{
+                var inbSpan = inb.querySelector('span:first-child');
+                if (inbSpan) inbSpan.textContent = 'Inbox';
+                inb.setAttribute('aria-label', 'View Inbox');
             }}
             var trIn = document.getElementById('kb-graph-trigger-inline');
             if (trIn) {{
@@ -704,6 +724,7 @@ try {
     $entrypointRelative = Get-KbStaticRelativePath -Base $contentRoot -Path $entrypointFull
     $entryOutputRelative = Get-KbStaticPageOutputPath -RelativeSource $entrypointRelative
     $markdownFiles = @($contentFiles | Where-Object { $_.Extension -ieq '.md' } | Sort-Object FullName)
+    $inboxCount = @($contentFiles | Where-Object { $_.Extension -ieq '.md' -and ((Get-KbStaticRelativePath -Base $contentRoot -Path $_.FullName) -match '(?i)^inbox[\\/]') }).Count
     # Validate the complete navigation graph before any destination creation or copying.
     $navigation = Get-KbStaticNavigationModel -MarkdownFiles $markdownFiles -ContentRoot $contentRoot -EntrySourcePath $entrypointFull
 
@@ -969,7 +990,7 @@ try {
             $anchorResult = Update-KbHeadingAnchors -Html $rendered.Html -OwnerPageId $ownerPageId -SourcePath $sourceRelative
             $isHome = ($sourceRelative -eq $entrypointRelative)
             $title = $navigation.Pages[$sourceRelative].Title
-            $html = New-KbStaticHtmlDocument -Title $title -BodyHtml $anchorResult.Html -OutputRelative $outputRelative -Navigation $navigation -SourceRelative $sourceRelative -IsHome:$isHome -PageNodeId $ownerPageId
+            $html = New-KbStaticHtmlDocument -Title $title -BodyHtml $anchorResult.Html -OutputRelative $outputRelative -Navigation $navigation -SourceRelative $sourceRelative -IsHome:$isHome -PageNodeId $ownerPageId -InboxCount $inboxCount
             $parent = Split-Path -Parent $outputPath
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             [IO.File]::WriteAllText($outputPath, $html, [Text.UTF8Encoding]::new($false))
@@ -1018,7 +1039,12 @@ try {
                 $items.Add('<li><a href="' + [System.Net.WebUtility]::HtmlEncode($href) + '">' + [System.Net.WebUtility]::HtmlEncode($label) + '</a></li>')
             }
             $heading = if ([string]::IsNullOrEmpty($directoryRelative) -or $directoryRelative -eq '.') { '文件目录' } elseif ($isTypeDirectory) { $directoryTitles[$directoryRelative] } else { Split-Path -Leaf $directory }
-            $html = New-KbStaticHtmlDocument -Title $heading -BodyHtml ('<h1>' + [System.Net.WebUtility]::HtmlEncode($heading) + '</h1><ul>' + ($items -join "`n") + '</ul>') -OutputRelative $outputRelative -Navigation $navigation -IsHome:$false -PageNodeId ''
+            $bodyContent = if ($isTypeDirectory -and $directoryRelative -eq 'inbox' -and $items.Count -eq 0) {
+                '<h1>' + [System.Net.WebUtility]::HtmlEncode($heading) + '</h1><p class="kb-inbox-empty" style="color:#60758a;margin:1.5rem 0;">收件箱为空，暂无待整理笔记。</p>'
+            } else {
+                '<h1>' + [System.Net.WebUtility]::HtmlEncode($heading) + '</h1><ul>' + ($items -join "`n") + '</ul>'
+            }
+            $html = New-KbStaticHtmlDocument -Title $heading -BodyHtml $bodyContent -OutputRelative $outputRelative -Navigation $navigation -IsHome:$false -PageNodeId ''
             $parent = Split-Path -Parent $outputPath
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             [IO.File]::WriteAllText($outputPath, $html, [Text.UTF8Encoding]::new($false))

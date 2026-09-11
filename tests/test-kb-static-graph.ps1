@@ -458,6 +458,94 @@ id: kb-20260910-0001
     Assert-True ($jsPreview.StartsWith('window.__KB_GRAPH_PREVIEWS__ = ')) "Preview JS prefix present"
     Assert-True ($jsPreview -notmatch '</script>') "Raw </script> tag is escaped in preview JS"
 
+    # -------------------------------------------------------------
+    # 8. Inbox and Archive Exclusion Test
+    # -------------------------------------------------------------
+    Write-Utf8 (Join-Path $content 'inbox/draft-note.md') @'
+# 暂存草稿笔记
+
+这是收件箱中的草稿笔记，不应该作为图谱节点出现。
+'@
+    Write-Utf8 (Join-Path $content 'archive/historical.md') @'
+---
+id: kb-20260910-9999
+type: concept
+status: deprecated
+---
+# 历史归档条目
+
+这是已归档的条目，不应该作为图谱节点出现。
+'@
+    $origIndex = [IO.File]::ReadAllText((Join-Path $content 'index.md'))
+    $indexWithInboxLink = $origIndex + "`n`n## 待整理笔记`n`n- [草稿笔记](inbox/draft-note.md)`n"
+    Write-Utf8 (Join-Path $content 'index.md') $indexWithInboxLink
+
+    $mdFilesWithInbox = @(Get-ChildItem -LiteralPath $content -Recurse -File -Filter "*.md" | Sort-Object FullName)
+    $graphResultWithInbox = Get-KbGraphModel -ContentRoot $content -Navigation $navModel -MarkdownFiles $mdFilesWithInbox
+
+    $gdInbox = $graphResultWithInbox.GraphData
+    $inboxNodes = @($gdInbox.nodes | Where-Object {
+        $nid = [string]$_['id']
+        if ($nid -match '(?i)inbox|archive') { return $true }
+        if ($_.Contains('page') -and $null -ne $_['page'] -and $_['page'].Contains('source_path')) {
+            $sp = [string]$_['page']['source_path']
+            if ($sp -match '(?i)^inbox/|^archive/') { return $true }
+        }
+        if ($_.Contains('target') -and $null -ne $_['target'] -and $_['target'].Contains('path')) {
+            $tp = [string]$_['target']['path']
+            if ($tp -match '(?i)^inbox/|^archive/') { return $true }
+        }
+        return $false
+    })
+    Assert-True ($inboxNodes.Count -eq 0) "No graph nodes generated for inbox/ or archive/ files"
+
+    $inboxEdges = @($gdInbox.edges | Where-Object {
+        $s = [string]$_['source']
+        $t = [string]$_['target']
+        $s -match '(?i)inbox|archive' -or $t -match '(?i)inbox|archive'
+    })
+    Assert-True ($inboxEdges.Count -eq 0) "No graph edges reference inbox/ or archive/ files"
+
+    $uncollectedSectionNodes = @($gdInbox.nodes | Where-Object {
+        $_.kind -eq 'section' -and $_.title -match '(?i)待整理|inbox|导览'
+    })
+    Assert-True ($uncollectedSectionNodes.Count -eq 0) "No section nodes generated for uncollected notes or entrypoint sections"
+
+    $indexSectionNodes = @($gdInbox.nodes | Where-Object {
+        $_.kind -eq 'section' -and $_.section.owner_page -eq 'page:path:index.md'
+    })
+    Assert-True ($indexSectionNodes.Count -eq 0) "No section nodes generated for entrypoint page"
+
+    Write-Utf8 (Join-Path $content 'index.md') $origIndex
+    Remove-Item -LiteralPath (Join-Path $content 'inbox/draft-note.md') -Force
+    Remove-Item -LiteralPath (Join-Path $content 'archive/historical.md') -Force
+
+    # -------------------------------------------------------------
+    # 9. Nested List in Collection Block Test
+    # -------------------------------------------------------------
+    $nestedIndex = @"
+# 知识库主页
+
+欢迎来到知识库。
+
+<!-- kb-nav:children:start -->
+- [概览地图](maps/overview.md)
+  - [项目 Alpha](projects/alpha.md)
+<!-- kb-nav:children:end -->
+"@
+    Write-Utf8 (Join-Path $content 'index.md') $nestedIndex
+    $mdFilesNested = @(Get-ChildItem -LiteralPath $content -Recurse -File -Filter "*.md" | Sort-Object FullName)
+    $navModelNested = Get-KbStaticNavigationModel -MarkdownFiles $mdFilesNested -ContentRoot $content -EntrySourcePath $entrypointFull
+    $graphResultNested = Get-KbGraphModel -ContentRoot $content -Navigation $navModelNested -MarkdownFiles $mdFilesNested
+    $gdNested = $graphResultNested.GraphData
+    $edgeMapNested = @{}
+    foreach ($e in $gdNested.edges) { $edgeMapNested[$e.id] = $e }
+
+    Assert-True ($edgeMapNested.ContainsKey("edge:collects:page:path:index.md->page:id:kb-20260910-0002")) "Index -> Overview collects edge exists"
+    Assert-True (-not $edgeMapNested.ContainsKey("edge:collects:page:path:index.md->page:id:kb-20260910-0001")) "Indented Project Alpha under Overview is NOT collected directly by Index"
+
+    Write-Utf8 (Join-Path $content 'index.md') $origIndex
+
     Write-Output "PASS: all kb-static-graph unit and integration tests passed successfully"
 }
 finally {

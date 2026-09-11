@@ -36,6 +36,7 @@ Synchronization is configured and operated by the user. The Skill has no provide
 
 ## Content integrity
 
+- Confine factual claims strictly to authorized sources. Never extrapolate ungrounded details, private APIs, parameters, or speculative behaviors from pre-trained model memory. When incorporating supplementary context from existing knowledge-base entries or authorized projects, explicitly mark its provenance (e.g. `> 补充来源: ...`).
 - Keep source claims, project observations, inference, and uncertainty distinguishable.
 - Preserve original quotations and citations within copyright and user-provided constraints.
 - Do not generalize a finding beyond its stated model, environment, sample, time, or evidence.

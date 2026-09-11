@@ -112,6 +112,8 @@ with native SVG, CSS, and vanilla JavaScript without third-party libraries:
 - **Graph nodes and edges**: nodes represent pages, article sections (h2–h6),
   and deduplicated external references. Edges differentiate explicit curation
   (`collects`), outline containment (`contains`), and text citations (`references`).
+  Files under `inbox/` and `archive/` are uncurated drafts or superseded history and
+  are intentionally excluded from the graph to maintain high signal-to-noise ratio.
 - **Interactions**: clicking a node body expands/collapses child nodes and
   smoothly centers/focuses the camera; clicking a title link opens the target
   page or section in a new tab (`target="_blank" rel="noopener noreferrer`);

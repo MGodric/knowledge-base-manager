@@ -25,6 +25,19 @@ read every file in full. If an answer requires additional authorized material,
 read it. If it requires access outside scope, name the missing answer and what
 it prevents; do not fill the space with a generic reminder or invent a fact.
 
+Factual content, parameters, hardware/chip specifics, APIs, and procedural steps
+must be strictly grounded in authorized source materials. Pre-trained model
+knowledge (parametric memory) may be used only for grammatical fluency,
+structural formatting, and general conceptual clarity—never to extrapolate
+unverified domain details, invent hypothetical behaviors, or guess unstated
+implementation specifics. If the current knowledge base or authorized project
+already contains relevant supplementary context, it may be selectively
+incorporated, but must be explicitly marked with a provenance label (for example
+`> 补充来源: [条目/项目名]` in Chinese, or `> Supplementary source: [entry/project]`
+in English). Any question that cannot be answered from authorized materials or
+labeled internal sources must be explicitly named as an open question or gap;
+never fabricate an answer to make the entry feel complete.
+
 ## Organize complete explanations
 
 Use familiar topic names and the terminology readers of the field actually use.
@@ -124,6 +137,10 @@ are sufficient for the agreed reader. Check:
   process reminders that obscure the content?
 - Are there factual errors, unsupported inferences, or sensitive details that
   should not have been retained?
+- Are all factual claims, parameters, and procedures strictly grounded in the
+  authorized source materials or explicitly labeled internal references
+  (`> 补充来源: ...`), with zero ungrounded parametric extrapolation or
+  hallucinated details?
 
 Use specific passages and omissions when reporting the result; do not score by
 length, entry count, keywords, or formatting. A clean structural audit and a

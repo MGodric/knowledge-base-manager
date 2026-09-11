@@ -6,6 +6,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $builder = Join-Path $projectRoot 'knowledge-base-manager/scripts/kb-build-static.ps1'
+$navScript = Join-Path $projectRoot 'knowledge-base-manager/scripts/kb-static-navigation.ps1'
+. $navScript
 $shell = (Get-Command pwsh -ErrorAction Stop).Source
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
 $testRoot = [IO.Path]::GetFullPath((Join-Path $tempBase ('kb-navigation-tests-' + [guid]::NewGuid().ToString('N'))))
@@ -95,6 +97,35 @@ try {
     Assert-Success $bodyOnly 'body-only rebuild'
     Assert-True ($bodyOnly.Data.generated -eq 1) 'body-only change rebuilds exactly its page'
     Assert-True ((Read-Manifest $destination).navigation_digest -eq $digest) 'body changes do not alter navigation digest'
+
+    # Nested list test: indented items under a map must not establish direct homepage parentage
+    $nestedHomeText = "# 我的首页`n`n" + (Nav-Block "- [主题](集合/主题.md)`n  - [工程](../项目/工程.md)")
+    Write-Utf8 (Join-Path $kb 'content/首页.md') $nestedHomeText
+    $nestedBuild = Invoke-Builder $kb $destination
+    Assert-Success $nestedBuild 'nested list in collection region build with relative-parent dots'
+    $leafHtml = Read-Html $destination '笔记/条目 中文.html'
+    $breadcrumb = [regex]::Match($leafHtml, '(?s)<nav class="kb-breadcrumb".*?</nav>').Value
+    Assert-True ($breadcrumb -match '我的首页.*主题 H1.*工程 H1.*条目 H1') 'breadcrumb remains a clean single-chain: 我的首页 > 主题 H1 > 工程 H1 > 条目 H1'
+    Assert-True ($leafHtml -notmatch '<nav class="kb-collections"' -and $leafHtml -notmatch '<p>收录入口</p>') 'no multi-parent fallback shown for nested list'
+
+    # Also test with in-scope link to verify in-scope child is not collected directly
+    $nestedHomeInScope = "# 我的首页`n`n" + (Nav-Block "- [主题](集合/主题.md)`n  - [工程](项目/工程.md)")
+    Write-Utf8 (Join-Path $kb 'content/首页.md') $nestedHomeInScope
+    $nestedBuildInScope = Invoke-Builder $kb $destination
+    Assert-Success $nestedBuildInScope 'nested list in collection region build with in-scope link'
+    $leafHtml2 = Read-Html $destination '笔记/条目 中文.html'
+    $breadcrumb2 = [regex]::Match($leafHtml2, '(?s)<nav class="kb-breadcrumb".*?</nav>').Value
+    Assert-True ($breadcrumb2 -match '我的首页.*主题 H1.*工程 H1.*条目 H1') 'breadcrumb remains clean single-chain with in-scope nested link'
+    Assert-True ($leafHtml2 -notmatch '<nav class="kb-collections"' -and $leafHtml2 -notmatch '<p>收录入口</p>') 'no multi-parent fallback shown with in-scope nested link'
+
+    # Direct model inspection: homepage has only 集合/主题.md as child; 项目/工程.md has only 1 parent
+    $mdFilesCurrent = @(Get-ChildItem -LiteralPath (Join-Path $kb 'content') -Recurse -File -Filter '*.md')
+    $navCurrent = Get-KbStaticNavigationModel -MarkdownFiles $mdFilesCurrent -ContentRoot (Join-Path $kb 'content') -EntrySourcePath (Join-Path $kb 'content/首页.md')
+    Assert-True ($navCurrent.Pages['首页.md'].Children.Count -eq 1 -and $navCurrent.Pages['首页.md'].Children[0] -eq '集合/主题.md') 'homepage Children contains only 集合/主题.md, NOT 项目/工程.md'
+    Assert-True ($navCurrent.Pages['项目/工程.md'].Parents.Count -eq 1 -and $navCurrent.Pages['项目/工程.md'].Parents[0] -eq '集合/主题.md') '项目/工程.md has exactly 1 parent (集合/主题.md)'
+
+    # Restore home text for subsequent tests
+    Write-Utf8 (Join-Path $kb 'content/首页.md') $homeText
 
     $renamedMapText = $mapText.Replace('# 主题 H1', '# 新主题标题')
     Write-Utf8 (Join-Path $kb 'content/集合/主题.md') $renamedMapText

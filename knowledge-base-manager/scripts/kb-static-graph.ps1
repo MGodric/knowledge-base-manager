@@ -251,6 +251,10 @@ function Get-KbGraphModel {
     if ($null -ne $ValidatedPages -and $ValidatedPages.Count -gt 0) {
         foreach ($vp in $ValidatedPages) {
             $source = [string]$vp.Source
+            if ($source.StartsWith('inbox/', [System.StringComparison]::OrdinalIgnoreCase) -or
+                $source.StartsWith('archive/', [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
             $raw = if ($null -ne $vp.PSObject.Properties['RawMarkdown']) { [string]$vp.RawMarkdown } else { '' }
             $fm = if ($null -ne $vp.PSObject.Properties['Frontmatter'] -and $null -ne $vp.Frontmatter) {
                 $vp.Frontmatter
@@ -283,6 +287,10 @@ function Get-KbGraphModel {
     } elseif ($null -ne $MarkdownFiles -and $MarkdownFiles.Count -gt 0) {
         foreach ($file in $MarkdownFiles) {
             $source = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
+            if ($source.StartsWith('inbox/', [System.StringComparison]::OrdinalIgnoreCase) -or
+                $source.StartsWith('archive/', [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
             $raw = [IO.File]::ReadAllText($file.FullName)
             $fm = Get-KbPageFrontmatter -Text $raw
             $title = if ($Navigation.Pages.ContainsKey($source)) {
@@ -407,7 +415,7 @@ function Get-KbGraphModel {
 
         $siblingCounters = @{}
         foreach ($sec in $sections) {
-            if ($source -eq $Navigation.EntrySource -and $sec.Title -eq '导览') {
+            if ($source -eq $entrypoint -or $sec.Title -match '(?i)^(待整理笔记|待整理|收件箱|inbox)$') {
                 continue
             }
             $secNodeId = $sec.NodeId
@@ -489,16 +497,17 @@ function Get-KbGraphModel {
         $orderedChildren = [System.Collections.Generic.List[string]]::new()
 
         $collectSourceNodeId = $pageNodeId
-        if ($source -ne $Navigation.EntrySource -and $renderedPageMap.ContainsKey($source)) {
+        if ($source -ne $entrypoint -and $renderedPageMap.ContainsKey($source)) {
             $matchedSec = $renderedPageMap[$source].Sections | Where-Object { $_.HtmlContent -match '<!--\s*kb-nav:children:start\s*-->' } | Select-Object -Last 1
-            if ($null -ne $matchedSec) {
+            if ($null -ne $matchedSec -and $nodes.ContainsKey($matchedSec.NodeId)) {
                 $collectSourceNodeId = $matchedSec.NodeId
             }
         }
         if ($navBlockMatch.Success) {
             $blockText = $navBlockMatch.Groups[1].Value
             $blockText = [regex]::Replace($blockText, '(?is)```[\s\S]*?```', '')
-            $linkMatches = [regex]::Matches($blockText, '(?is)\[([^\]]*)\]\((<[^>]+>|[^)\s]+)[^)]*\)')
+            $topLevelBlockText = [regex]::Replace($blockText, '(?m)^[ \t]+[-*+0-9].*$', '')
+            $linkMatches = [regex]::Matches($topLevelBlockText, '(?is)\[([^\]]*)\]\((<[^>]+>|[^)\s]+)[^)]*\)')
             $seenChildren = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
             foreach ($lm in $linkMatches) {
@@ -572,7 +581,8 @@ function Get-KbGraphModel {
         foreach ($sm in $scanMatches) {
             if ($sm.Groups['heading'].Success) {
                 $hid = $sm.Groups['hid'].Value
-                $currentSectionNodeId = "section:$pageNodeId#$hid"
+                $candidateSecId = "section:$pageNodeId#$hid"
+                $currentSectionNodeId = if ($nodes.ContainsKey($candidateSecId)) { $candidateSecId } else { $null }
                 continue
             }
 
@@ -714,6 +724,11 @@ function Get-KbGraphModel {
 
                     if ($isInside) {
                         $relTarget = [IO.Path]::GetRelativePath($root, $candidatePath).Replace('\', '/')
+                        if ($relTarget.StartsWith('inbox/', [System.StringComparison]::OrdinalIgnoreCase) -or
+                            $relTarget.StartsWith('archive/', [System.StringComparison]::OrdinalIgnoreCase)) {
+                            # Inbox and archive files are excluded from the knowledge graph.
+                            continue
+                        }
                         $mdEquivalent = [regex]::Replace($relTarget, '(?i)\.html$', '.md')
                         $resolvedTargetSource = $null
 

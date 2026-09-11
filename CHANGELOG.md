@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5a - 2026-09-12
+
+- Refined inbox curation and Promote workflows with project origin tracking, localized fallback categorization, and strict evidence grounding without ungrounded model extrapolations.
+- Added a pre-rendered homepage Inbox navigation button with an active/empty count badge, directory index empty-state handling, and nested list hierarchy support in curated navigation.
+- Excluded draft and archive notes from the 2D offline relationship graph to keep graph views clean.
+
 ## 0.1.5 - 2026-09-11
 
 - Added an offline two-dimensional relationship graph built with native SVG, CSS, and zero runtime dependencies, featuring multi-parent BFS depth resolution, radial layout, and node excerpt previews.

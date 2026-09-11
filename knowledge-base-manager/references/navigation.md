@@ -30,9 +30,22 @@ external URLs, directory links, or links with query strings. Fragments may
 identify a section, but membership refers to the whole target page.
 
 The root collection links only project or map pages. Other collections may
-include reusable entries, sources, decisions, or other collections. A child
-may be collected by more than one page; an ordinary citation, filename prefix,
-tag, or provenance project ID never creates a parent relationship.
+include reusable entries, sources, decisions, or other collections. A top-level
+miscellaneous/uncategorized node (for example `杂项` in Chinese, or `Miscellaneous` /
+`Misc` in English) may be included on the same level as other projects and topic maps
+in the root collection, serving as the canonical top-level collection parent for general,
+standalone, or uncategorized knowledge entries that lack a dedicated project or topic map.
+A child may be collected by more than one page; an ordinary citation, filename prefix, tag,
+or provenance project ID never creates a parent relationship.
+
+Inside `<!-- kb-nav:children -->`, collections may use Markdown nested lists
+(such as 2 or 4 spaces indented sub-items under a topic map) to visually display
+projects belonging to a map on the homepage or collection page. Only the top-level
+list items (the outermost `<li>`) declare direct parent-child collection
+membership with the current page. Indented sub-items represent subordinate
+members belonging to their immediate parent map/topic; the enclosing collection
+does not treat them as direct children, preventing duplicate parent
+relationships, ambiguous multi-parent breadcrumbs, and redundant graph edges.
 
 Before publishing generated pages, the builder checks region pairing,
 collection eligibility, target existence and containment, self-links, and
@@ -45,7 +58,9 @@ is inferred for them.
 
 Keep the homepage short: an introduction, a curated topic/project entry list
 inside its collection region, and optional secondary type-browsing links
-outside that region. A topic can collect multiple projects; independent
+outside that region. While the homepage should remain concise, it may preview
+the projects belonging to a collected topic/map as indented sub-items under
+that topic map. A topic can collect multiple projects; independent
 projects can stay directly on the homepage. Do not add a topic merely for
 symmetry, and do not repeat all leaf entries on the homepage.
 
@@ -60,6 +75,12 @@ The auditor accepts existing standard type-directory links on the configured
 homepage outside its collection region; see the precise
 [audit exception](audit-rules.md). Other directory links still warn, and type
 inventories never establish a collection relationship or cure orphan entries.
+
+The configured homepage header includes an Inbox navigation button with an
+active/empty count badge, and may link to `inbox/` under type-browsing; raw note
+lists are not embedded in homepage sections. This decouples homepage curation
+from temporary note accumulation, preserves reading navigation and graph integrity,
+and avoids polluting the offline relationship graph.
 
 ## Reading behavior
 

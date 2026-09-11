@@ -183,6 +183,7 @@ Get-Item
     Assert-True ($entryHtml.Contains('id="kb-graph-trigger"') -and $entryHtml.Contains('关系图谱')) 'nested page nav header must provide graph overlay button'
     Assert-True ($entryHtml.Contains('id="kb-graph-overlay-script"') -and $entryHtml.Contains("mode: 'overlay'")) 'nested page must configure graph overlay'
     Assert-True ($entryHtml.Contains('outputBaseUrl: ".."') -or $entryHtml.Contains("outputBaseUrl: '..'")) 'nested page must mount overlay with depth-relative outputBaseUrl'
+    Assert-True ($indexHtml.Contains('class="kb-inbox-trigger-btn"') -and $indexHtml.Contains('class="kb-inbox-badge kb-inbox-badge-empty"') -and $indexHtml.Contains('>0</span>') -and $indexHtml.Contains('href="inbox/index.html"')) 'index.html must contain inbox button with empty badge and link to inbox/index.html'
     Assert-True ((Test-Path -LiteralPath (Join-Path $destination 'kb-navigation.html') -PathType Leaf)) 'standalone navigation page must be generated'
     $navPageHtml = Get-Content -LiteralPath (Join-Path $destination 'kb-navigation.html') -Raw -Encoding UTF8
     Assert-True ($navPageHtml.Contains('id="kb-nav-app"') -and $navPageHtml.Contains("mode: 'standalone'") -and $navPageHtml.Contains("outputBaseUrl: '.'")) 'navigation page must mount standalone graph'
@@ -293,6 +294,34 @@ Get-Item
     Remove-Item -LiteralPath (Split-Path -Parent $newPath) -Force
     $removedDirectory = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
     Assert-True ($removedDirectory.ExitCode -eq 0 -and ($removedDirectory.Data.removed_paths -contains '资料 空格/index.html')) 'deleting a directory without index.md must remove its prior manifest-owned directory index'
+
+    # Inbox button and badge dynamic tests
+    $inboxDraft = Join-Path $kb 'content\inbox\draft.md'
+    Write-Utf8 $inboxDraft @'
+---
+id: kb-20260912-draft
+title: 待整理草稿
+---
+# 待整理草稿
+
+这是待整理草稿正文。
+'@
+    $inboxBuild = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
+    Assert-True ($inboxBuild.ExitCode -eq 0) 'inbox build should succeed'
+    $indexWithInbox = Get-Content -LiteralPath (Join-Path $destination 'index.html') -Raw -Encoding UTF8
+    Assert-True ($indexWithInbox.Contains('class="kb-inbox-badge kb-inbox-badge-active"') -and $indexWithInbox.Contains('>1</span>')) 'index.html must contain active badge and >1</span>'
+    $inboxIndexHtml = Get-Content -LiteralPath (Join-Path $destination 'inbox\index.html') -Raw -Encoding UTF8
+    Assert-True ($inboxIndexHtml.Contains('href="draft.html"') -and $inboxIndexHtml.Contains('待整理草稿')) 'inbox/index.html must contain a link to draft.html with its title'
+
+    # Clean up the draft note and rebuild, verify it returns to empty state
+    Remove-Item -LiteralPath $inboxDraft -Force
+    $emptyInboxBuild = Invoke-Builder -Root $kb -Destination $destination -KatexAssets $katexAssets
+    Assert-True ($emptyInboxBuild.ExitCode -eq 0) 'empty inbox rebuild should succeed'
+    $indexEmpty = Get-Content -LiteralPath (Join-Path $destination 'index.html') -Raw -Encoding UTF8
+    Assert-True ($indexEmpty.Contains('class="kb-inbox-badge kb-inbox-badge-empty"') -and $indexEmpty.Contains('>0</span>')) 'index.html must return to empty state >0</span>'
+    $inboxEmptyHtml = Get-Content -LiteralPath (Join-Path $destination 'inbox\index.html') -Raw -Encoding UTF8
+    Assert-True ($inboxEmptyHtml.Contains('收件箱为空，暂无待整理笔记。')) 'inbox/index.html must display empty state message when inbox is empty'
+    Remove-Item -LiteralPath (Split-Path -Parent $inboxDraft) -Force
 
     $conflictKb = Join-Path $testRoot 'conflict kb'
     $conflictDestination = Join-Path $testRoot 'conflict destination'

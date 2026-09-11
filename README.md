@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.1.5). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.1.5a). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 
@@ -20,14 +20,14 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 ## Key Features
 
 - **Capture & Knowledge Promotion**
-  - **Capture**: Save transient notes and debugging logs into an Inbox or project drafts.
-  - **Promote**: Refine raw drafts into structured knowledge entries with clear context, mechanisms, and boundary conditions.
+  - **Capture**: Save transient notes and debugging logs into an Inbox with explicit project origin tracking and localized fallback categorization (`Miscellaneous` / `杂项`).
+  - **Promote**: Refine raw drafts into structured knowledge entries grounded strictly in authorized sources, prohibiting ungrounded model extrapolations and explicitly tagging intra-knowledge-base additions.
   - **Project Synthesis**: On explicit request, synthesize related knowledge across multiple projects with question-driven outlines and verified provenance.
 - **Structure Audit**
   - Run `kb-audit` to detect broken links, missing metadata, path containment escapes, duplicate IDs, and cloud synchronization conflict files.
 - **Static Site & Relationship Graph**
-  - **Offline Static Reader**: Open HTML files directly in a browser without running a local web server. Includes responsive layout, offline KaTeX math rendering, table of contents navigation, and code copying.
-  - **Interactive 2D Relationship Graph**: Zero-dependency native SVG and CSS implementation. Provides homepage embedding, reading-page overlay modals, and a standalone navigation page. Supports branch expanding/collapsing, 1-hop ego-network focus, and offline bilingual (EN/ZH) interface.
+  - **Offline Static Reader**: Open HTML files directly in a browser without running a local web server. Includes responsive layout, offline KaTeX math rendering, table of contents navigation, code copying, curated collection hierarchy with nested lists, and a homepage Inbox header button with an offline pre-rendered count badge.
+  - **Interactive 2D Relationship Graph**: Zero-dependency native SVG and CSS implementation with draft and archive isolation. Provides homepage embedding, reading-page overlay modals, and a standalone navigation page. Supports branch expanding/collapsing, 1-hop ego-network focus, and offline bilingual (EN/ZH) interface.
 - **Portable Backup & Restore**
   - **`ReferenceComplete` Backup**: Archives the knowledge base alongside explicitly registered external source files with SHA-256 checksums.
   - **Plan & Confirm Workflow**: Read-only planning produces a deterministic file list and digest; execution requires confirmation with drift detection.

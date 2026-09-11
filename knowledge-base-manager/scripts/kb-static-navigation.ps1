@@ -19,7 +19,7 @@ function Get-KbStaticNavigationModel {
         $type = ''
         $front = [regex]::Match($text, '\A---\s*\r?\n(?<fields>[\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)')
         if ($front.Success) {
-            $typeMatch = [regex]::Match($front.Groups['fields'].Value, '(?m)^type:[ \t]*(?<value>[^\r\n]*)$')
+            $typeMatch = [regex]::Match($front.Groups['fields'].Value, '(?m)^type:[ \t]*(?<value>[^\r\n]*)\r?$')
             if ($typeMatch.Success) { $type = $typeMatch.Groups['value'].Value.Trim().Trim('"', "'").ToLowerInvariant() }
             $text = $text.Substring($front.Length)
         }
@@ -54,6 +54,10 @@ function Get-KbStaticNavigationModel {
     if (-not $pages.ContainsKey($entry)) { throw 'BLOCKER: navigation entrypoint is missing from Markdown files' }
     foreach ($source in @($blocks.Keys)) {
         $block = [regex]::Replace($blocks[$source], '(?is)<(pre|code)\b[^>]*>.*?</\1>', '')
+        $nestedListPattern = '(?is)(?<=<li\b[^>]*>(?:(?!<li\b)[\s\S])*?)<(ul|ol)\b(?:(?!<(ul|ol)\b)[\s\S])*?</\1>'
+        while ([regex]::IsMatch($block, $nestedListPattern)) {
+            $block = [regex]::Replace($block, $nestedListPattern, '')
+        }
         $targets = @{}
         foreach ($anchor in [regex]::Matches($block, '(?is)<a\b[^>]*\bhref\s*=\s*"([^"]*)"[^>]*>(.*?)</a>')) {
             if ($anchor.Groups[2].Value -match '(?is)<img\b') { continue }

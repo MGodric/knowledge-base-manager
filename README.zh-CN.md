@@ -13,7 +13,7 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 - **标准纯文本格式**：知识库完全由标准 Markdown 文件构成，脱离 AI 助手或特定软件后，仍可直接使用通用文本编辑器查阅与编辑。
 - **跨项目知识提炼**：将分散在各个开发项目中的技术方案、排查记录与规范沉淀为可跨项目复用的知识条目。
 - **人机协同可读**：针对人类阅读与 AI 检索进行结构规范化，兼顾文章可读性与模型检索边界。
-- **零外部服务依赖**：基于 PowerShell 7 与原生静态 Web 技术实现，运行时无需安装 Python、Node.js、数据库或网络服务。
+- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库或常驻服务。Python 驱动本地知识写作与检索工具集；PowerShell 7 驱动静态站点生成与便携备份。
 
 ---
 
@@ -32,14 +32,17 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
   - **`ReferenceComplete` 备份**：归档知识库及已显式登记的外部关联源码，并计算 SHA-256 校验和。
   - **规划与确认机制**：备份规划为只读操作，生成明确的文件清单与摘要哈希；需用户二次确认且数据无漂移后执行导出。
   - **`Portable` 恢复**：解压恢复至未存在的目标目录，并自动执行完整性校验与审计。
+- **使用反馈机制（按需触发）**
+  - **事件驱动记录**：仅在实际观察到具体问题（检索遗漏、阅读误用、更新遗漏、工具故障）时记录带锚点的简短观察；不引入后台常驻服务、不发起额外全库扫描、不作无依据的质量保证声称。
 
 ---
 
 ## 运行环境要求
 
 - **操作系统**：Windows
-- **PowerShell**：PowerShell 7 或更高版本（命令行直接调用 `pwsh`，不支持 Windows PowerShell 5.1）
-- **运行时依赖**：不需要安装 Python、Node.js、数据库或第三方 PowerShell 模块。
+- **Python**：Python 3.12+（已在 Windows CPython 3.14.7 验证；依赖：`PyYAML 6.0.3`、`markdown-it-py 4.2.0`、`mdit-py-plugins 0.6.1`），用于知识库写作与辅助命令行工具集（`scripts/kb.py`：resolve, inspect, search, read, audit）
+- **PowerShell**：PowerShell 7 或更高版本（命令行直接调用 `pwsh`，不支持 Windows PowerShell 5.1），用于独立的静态站点生成（`kb-build-static.ps1`）与便携备份恢复（`kb-backup.ps1`）
+- **运行时依赖**：运行时不需要安装 Node.js、数据库、常驻服务或第三方 PowerShell 模块。
 
 ---
 
@@ -96,6 +99,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 | 离线静态阅读站点构建 | 已支持 | 自适应布局、KaTeX 公式、响应式目录、代码复制。 |
 | 离线交互式 2D 关系图谱 | 已支持 | 首页内嵌、正文全屏弹窗、邻域聚焦特写、中英双语自适应。 |
 | ReferenceComplete 备份与恢复 | 已支持 | SHA-256 校验、防漂移二次确认、便携外部来源迁移。 |
+| 实际使用反馈机制（Anchor / Trigger） | 已支持 | 事件驱动的短记录机制，无后台常驻进程与额外扫描。 |
 | Antigravity 原生适配 | 规划中 | 适配 Antigravity 工作流与规则/Skill 标准。 |
 | ProjectSnapshot 备份 / Relink 恢复 | 规划中 | 针对大型外部项目整库快照的策略仍在设计中。 |
 | 全文搜索索引 UI 与反向链接面板 | 规划中 | 后续在保持纯离线、无后端的前提下逐步演进。 |
@@ -116,6 +120,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 - [Skill 主说明 (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [核心工作流指南 (workflows.md)](knowledge-base-manager/references/workflows.md)
+- [使用反馈机制 (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
 - [静态站点与图谱说明 (static-site.md)](knowledge-base-manager/references/static-site.md)
 - [知识综合工作流 (project-synthesis.md)](knowledge-base-manager/references/project-synthesis.md)
 - [知识写作规范 (knowledge-writing.md)](knowledge-base-manager/references/knowledge-writing.md)
@@ -130,6 +135,10 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 ---
 
 ## 开发与测试
+
+Python 核心工具与结构验证统一使用项目 `.venv` 与固定版本的[开发依赖](requirements-dev.txt)。
+初始化、验证命令与 Codex/Gemini 共用约定见[开发环境说明](DEVELOPMENT.md)。
+Python（搭配 PyYAML 与 markdown-it-py）驱动写作命令行工具集（`kb.py`），静态站点构建与备份恢复保持为独立的 PowerShell 7 脚本。
 
 ```text
 knowledge-base-manager/   # 实际发布的 Skill 源码

@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$PythonExecutable = ''
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -28,6 +30,20 @@ function Assert-True {
 
 function Invoke-AuditJson {
     param([string]$Root)
+
+    if (-not [string]::IsNullOrWhiteSpace($PythonExecutable)) {
+        $kbScript = Join-Path $projectRoot 'knowledge-base-manager\scripts\kb.py'
+        $output = & $PythonExecutable -B -X utf8 $kbScript --format json audit --root $Root --profile legacy
+        $exitCode = $LASTEXITCODE
+        $env = (($output -join [Environment]::NewLine) | ConvertFrom-Json)
+        if ($null -eq $env -or $env.schema_version -ne 1 -or $env.command -ne 'audit') {
+            throw "Invalid Python audit envelope: $output"
+        }
+        return [pscustomobject]@{
+            ExitCode = $exitCode
+            Data     = $env.data
+        }
+    }
 
     $output = & $shellPath -NoProfile -File $auditScript -Root $Root -Format Json
     $exitCode = $LASTEXITCODE

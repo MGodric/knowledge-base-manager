@@ -5,6 +5,7 @@
 # Machine/session-local agent instructions; do not publicly track this file.
 /AGENTS.md
 /.agents/
+/.venv/
 /.tmp.driveupload/
 
 
@@ -48,3 +49,6 @@
 Thumbs.db
 Desktop.ini
 *.log
+__pycache__/
+*.py[cod]
+*$py.class

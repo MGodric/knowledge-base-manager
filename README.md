@@ -13,7 +13,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 - **Standard Plain-Text Format**: The knowledge base consists strictly of standard Markdown files. It can be viewed and edited using standard text editors independently of AI assistants or proprietary software.
 - **Cross-Project Synthesis**: Extract technical decisions, architectural patterns, and troubleshooting notes across repositories into reusable knowledge entries.
 - **Human and Agent Usability**: Structured for human readability while maintaining explicit boundaries and schema metadata for accurate AI retrieval.
-- **Zero External Runtime Dependencies**: Built with PowerShell 7 and native static web standards. Requires no Python, Node.js, databases, or web services at runtime.
+- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases or background web services. Python powers the local authoring and reading toolset; PowerShell 7 powers static site generation and portable backup.
 
 ---
 
@@ -32,14 +32,17 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
   - **`ReferenceComplete` Backup**: Archives the knowledge base alongside explicitly registered external source files with SHA-256 checksums.
   - **Plan & Confirm Workflow**: Read-only planning produces a deterministic file list and digest; execution requires confirmation with drift detection.
   - **`Portable` Restore**: Restores the bundle into a clean destination directory with integrity and structure verification.
+- **Usage Feedback (Conditional)**
+  - **Event-Driven Issue Recording**: Record locatable observations anchored to entries or operations only when concrete failures (retrieval omission, reading misuse, update omission, tooling failure) are encountered. No background daemon, automated sweeps, or ungrounded quality claims.
 
 ---
 
 ## Requirements
 
 - **Operating System**: Windows
-- **PowerShell**: PowerShell 7 or later (`pwsh`; Windows PowerShell 5.1 is not supported)
-- **Runtime Dependencies**: No Python, Node.js, database, or third-party PowerShell modules required at runtime.
+- **Python**: Python 3.12+ (tested on Windows CPython 3.14.7; dependencies: `PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`) for the knowledge authoring and reading CLI toolset (`scripts/kb.py`: resolve, inspect, search, read, audit)
+- **PowerShell**: PowerShell 7 or later (`pwsh`; Windows PowerShell 5.1 is not supported) for static site generation (`kb-build-static.ps1`) and portable backup/restore (`kb-backup.ps1`)
+- **Runtime Dependencies**: No Node.js, databases, background services, or third-party PowerShell modules required at runtime.
 
 ---
 
@@ -96,6 +99,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | Static HTML reading site | Supported | Responsive layout, KaTeX math, responsive TOC, code copy. |
 | Offline 2D relationship graph | Supported | Inline embedding, overlay modal, ego-focus, bilingual controls. |
 | ReferenceComplete backup & restore | Supported | SHA-256 verification, anti-drift confirmation, external sources. |
+| Usage feedback (Anchor / Trigger) | Supported | Event-triggered workflow recording; no background daemon or quality claims. |
 | Antigravity native integration | Planned | Direct adapter for Antigravity skills, rules, and workflows. |
 | ProjectSnapshot backup / Relink restore | Planned | Strategy for whole-repository external snapshots is under design. |
 | Full-text search UI & backlinks | Planned | Exploring offline, serverless client-side implementations. |
@@ -116,6 +120,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 
 - [Skill Entrypoint (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [Workflows (workflows.md)](knowledge-base-manager/references/workflows.md)
+- [Usage Feedback (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
 - [Static Site & Graph (static-site.md)](knowledge-base-manager/references/static-site.md)
 - [Project Synthesis (project-synthesis.md)](knowledge-base-manager/references/project-synthesis.md)
 - [Knowledge Writing (knowledge-writing.md)](knowledge-base-manager/references/knowledge-writing.md)
@@ -130,6 +135,11 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 ---
 
 ## Development & Testing
+
+Python-based tools and structural validation use a project-local `.venv` and pinned
+[development dependencies](requirements-dev.txt). See [development setup and the
+shared Codex/Gemini commands](DEVELOPMENT.md). Python (with PyYAML and markdown-it-py) powers
+the authoring CLI toolset (`kb.py`), while static site build and backup/restore remain standalone PowerShell 7 scripts.
 
 ```text
 knowledge-base-manager/   # Distributable Skill source

@@ -1,3 +1,8 @@
+[CmdletBinding()]
+param(
+    [string]$PythonExecutable = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
 $scriptPath = Join-Path $PSScriptRoot '..\knowledge-base-manager\scripts\kb-resolve-root.ps1'
@@ -13,6 +18,39 @@ function Invoke-Resolver {
         [int]$SearchDepth = 2,
         [switch]$AllowMissing
     )
+
+    if (-not [string]::IsNullOrWhiteSpace($PythonExecutable)) {
+        $kbScript = Join-Path $PSScriptRoot '..\knowledge-base-manager\scripts\kb.py'
+        $arguments = @(
+            '-B',
+            '-X', 'utf8',
+            $kbScript,
+            '--format', 'json',
+            'resolve',
+            '--requested', $RequestedPath,
+            '--project-root', $ProjectRoot,
+            '--search-depth', $SearchDepth
+        )
+        foreach ($sr in $SourceRoot) {
+            $arguments += @('--source-root', $sr)
+        }
+        if ($AllowMissing) {
+            $arguments += '--allow-missing'
+        }
+
+        $output = & $PythonExecutable @arguments
+        $exitCode = $LASTEXITCODE
+        $env = ($output | Out-String | ConvertFrom-Json)
+        if ($null -eq $env -or $env.schema_version -ne 1 -or $env.command -ne 'resolve') {
+            throw "Invalid Python resolve envelope: $output"
+        }
+        $resultObj = $env.data
+        $resultObj | Add-Member -NotePropertyName 'status' -NotePropertyValue $env.status -Force
+        return [pscustomobject]@{
+            ExitCode = $exitCode
+            Result   = $resultObj
+        }
+    }
 
     $arguments = @(
         '-NoProfile',

@@ -24,9 +24,11 @@ Interpret a location supplied by the user before applying that order:
 - An unresolved explicit location does not fall through to a different configured default.
 - A phrase such as "this knowledge base" or "the one just created" may identify an existing cleanup target from the current task, but it does not select a destination for initialization. For a combined delete-and-reinitialize request, resolve `cleanup_target` and `new_root` separately. Never assume they are the same path.
 
-For a supplied path or folder name, use `scripts/kb-resolve-root.ps1`. The parameter is `-RequestedPath` (`-RequestedRoot` is accepted only as a compatibility alias). Pass the active project source/workspace folders with `-SourceRoot` when searching a bare name. Its `confirmation_required` result prohibits writes. Use `-AllowMissing` only for an exact path whose creation the user has authorized.
+For a supplied path or folder name, use `scripts/kb.py resolve` (or `scripts/kb-resolve-root.ps1`). The argument is `--requested <path>` (PowerShell `-RequestedPath`). Pass the active project source/workspace folders with `--source-root <dir>` (PowerShell `-SourceRoot`). Its `confirmation_required` result prohibits writes. Use `--allow-missing` (`-AllowMissing`) only for an exact path whose creation the user has authorized.
 
 ```powershell
+python -X utf8 ./scripts/kb.py resolve --requested "<user-supplied-location>" --project-root "<verified-project-root>" --source-root "<workspace-source-root>"
+# Fallback:
 ./scripts/kb-resolve-root.ps1 -RequestedPath "<user-supplied-location>" -ProjectRoot "<verified-project-root>" -SourceRoot "<workspace-source-root>"
 ```
 
@@ -51,14 +53,15 @@ If spawning is unavailable or fails, stop before reading sources in detail or wr
 ## Select a mode
 
 - **Initialize** when setting up a new knowledge base or adopting an existing directory. Read [references/initialization.md](references/initialization.md) and [references/safety.md](references/safety.md).
-- **Search** for questions about existing knowledge. This mode is read-only. Read [references/workflows.md](references/workflows.md#search).
+- **Search** for questions about existing knowledge. This mode is read-only. Read [references/workflows.md](references/workflows.md#search) and [references/python-tools.md](references/python-tools.md).
 - **Capture** for requests such as “remember this” or “put this in the knowledge base.” Read [references/workflows.md](references/workflows.md#capture), [references/markdown-format.md](references/markdown-format.md), and [references/safety.md](references/safety.md).
 - **Promote** when an inbox note should become durable, reusable knowledge. Read [references/knowledge-model.md](references/knowledge-model.md), [references/markdown-format.md](references/markdown-format.md), [references/workflows.md](references/workflows.md#promote), and [references/safety.md](references/safety.md).
 - **Project Synthesis** only for an explicit project-knowledge synthesis or an explicitly requested formal consolidation across multiple sources or projects. Read [references/project-synthesis.md](references/project-synthesis.md). It may be read-only assessment; if it will write, also follow the designated-editor gate, [references/knowledge-model.md](references/knowledge-model.md), [references/markdown-format.md](references/markdown-format.md), and [references/safety.md](references/safety.md). For a sustainable batch, use one designated editor, one audit/retry loop, and one accepted static build; do not create automatic aggregation.
 - **Link or move** when creating relationships, renaming, or relocating entries. Read [references/knowledge-model.md](references/knowledge-model.md), [references/workflows.md](references/workflows.md#link-move-and-rename), and [references/safety.md](references/safety.md).
-- **Audit** when checking consistency. Read [references/audit-rules.md](references/audit-rules.md) and run `scripts/kb-audit.ps1`.
+- **Audit** when checking consistency. Read [references/audit-rules.md](references/audit-rules.md) and [references/python-tools.md](references/python-tools.md). Run `scripts/kb.py audit` (or `scripts/kb-audit.ps1`).
 - **Build a local static site** when the user wants to browse the knowledge base as recursively generated HTML and an offline relationship graph without a server. Read [references/static-site.md](references/static-site.md) and run `scripts/kb-build-static.ps1`. Use `-Force` only when the user explicitly asks to regenerate every managed page and bundled asset; otherwise retain the default SHA-256 incremental behavior. This writes only to a separate generated-output directory, not to the live knowledge base, so it is not a knowledge-content edit for the delegation gate above.
 - **Backup or restore** when creating, validating, or recovering a portable knowledge-base copy. These bundled scripts require PowerShell 7+ via `pwsh`; Windows PowerShell 5.1 is unsupported. Read [references/backup-restore.md](references/backup-restore.md). For `ReferenceComplete`, show the user the full path-marked plan file list, ask for explicit post-plan confirmation, then invoke `-Execute -ConfirmedPlanDigest <exact digest>`. A generic initial backup request never authorizes execution. If unchanged, no further confirmation is needed; any drift returns a new plan and asks again. Never point backup output at the live knowledge base.
+- **Record usage feedback (conditional)** only when an actual issue (retrieval omission, reading misuse, update omission, or tooling failure) is observed during execution. Read [references/usage-feedback.md](references/usage-feedback.md). Do not load this reference or record feedback during normal, problem-free tasks.
 
 If a request combines modes, search before writing and audit after all writes.
 
@@ -79,16 +82,21 @@ If a request combines modes, search before writing and audit after all writes.
 - Prefer archiving over deletion. Do not silently overwrite, merge, or discard divergent sync copies.
 - Keep generated HTML outside the live knowledge base and treat it as disposable derived output. Do not add databases, vector indexes, Obsidian dependencies, Google Drive APIs, Git automation, or background hooks unless the user separately requests that expansion.
 - Do not follow directory junctions or symbolic links in knowledge-base, registered source, portable-bundle, or write-destination data paths. Require ordinary local paths and locally available files; a development link to the Skill directory itself is not a knowledge-base data path.
+- Record concise usage feedback only upon observing concrete operational defects, following [references/usage-feedback.md](references/usage-feedback.md). Do not perform speculative evaluations, extra background scans, or unrequested repairs.
 
 ## Search and edits
 
-Use `rg` first for filenames, headings, IDs, tags, and body text. If `rg` is unavailable, fall back to built-in PowerShell commands. Exclude `content/archive/` from ordinary searches unless the user asks for historical or deprecated material.
+Use `scripts/kb.py search` and `scripts/kb.py read` for heading-aware search and bounded section reading (see [references/python-tools.md](references/python-tools.md)). Use `rg` as an auxiliary search tool for regex search across text or when Python tools are unavailable. Exclude `content/archive/` from ordinary searches unless the user asks for historical or deprecated material.
 
 Before creating or promoting an entry, search for duplicate titles, IDs, synonyms, and overlapping content. Before moving a file, find all inbound links. Re-read every file immediately before editing so a stale snapshot does not overwrite a synchronized update.
 
 After a write, run:
 
 ```powershell
+python -X utf8 ./scripts/kb.py audit --root "<verified-knowledge-base-root>" --profile legacy
+# For Promote / Synthesis writes:
+python -X utf8 ./scripts/kb.py audit --root "<verified-knowledge-base-root>" --profile write --changed <rel-path> [--changed <rel-path>...]
+# Fallback:
 ./scripts/kb-audit.ps1 -Root "<verified-knowledge-base-root>"
 ```
 
@@ -104,10 +112,12 @@ Read [references/safety.md](references/safety.md) before any mutation, conflict 
 
 ## Audit behavior
 
-The bundled auditor is deterministic and read-only. Its text format is for people; JSON is for further automation:
+The bundled auditor is deterministic and read-only. Supports both Python CLI (`kb.py audit`) and PowerShell (`kb-audit.ps1`). Its text format is for people; JSON is for further automation:
 
 ```powershell
+python -X utf8 ./scripts/kb.py audit --root "<verified-knowledge-base-root>" --profile legacy --format json
+# Or:
 ./scripts/kb-audit.ps1 -Root "<verified-knowledge-base-root>" -Format Json
 ```
 
-Read [references/audit-rules.md](references/audit-rules.md) before interpreting or repairing findings. Audit does not authorize fixes.
+Read [references/audit-rules.md](references/audit-rules.md) and [references/python-tools.md](references/python-tools.md) before interpreting or repairing findings. Audit does not authorize fixes.

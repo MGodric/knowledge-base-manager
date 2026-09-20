@@ -33,6 +33,13 @@ class TestQueryCommands(unittest.TestCase):
             os.path.join(self.kb_root, "content", "index.md"),
             "# Knowledge Home\n\nWelcome to the knowledge base.\n- [Detection Method](knowledge/detection.md)\n",
         )
+        self.source_line = (
+            "- Project: `Core`; project-id: `core`; project-relative source: `docs/spec.md`; "
+            "external local path (outside knowledge base; machine-specific) <!-- kb-external-local -->: "
+            "[spec.md](D:/Projects/core/docs/spec.md); `verified: 2026-09-13`; "
+            "`revision: rev101`; supports: 旧 audit `NameError` 回归、$\\alpha(x)$ 和 "
+            "`内部; 分号`; 后续字段不是支持说明。"
+        )
         self.c_det = write_file(
             os.path.join(self.kb_root, "content", "knowledge", "detection.md"),
             """---
@@ -55,7 +62,9 @@ tags:
 
 ## 外部证据
 
-- Project: `Core`; project-id: `core`; project-relative source: `docs/spec.md`; external local path (outside knowledge base; machine-specific) <!-- kb-external-local -->: [spec.md](D:/Projects/core/docs/spec.md); `verified: 2026-09-13`; `revision: rev101`; supports: 局限性分析.
+"""
+            + self.source_line
+            + """
 """,
         )
         self.c_math = write_file(
@@ -178,6 +187,11 @@ updated: 2026-01-01
         sources = env.data["sources"]
         self.assertEqual(len(sources), 1)
         self.assertEqual(sources[0]["project_id"], "core")
+        self.assertEqual(sources[0]["raw_text"], self.source_line)
+        self.assertEqual(
+            sources[0]["support_text"],
+            "旧 audit `NameError` 回归、$\\alpha(x)$ 和 `内部; 分号`",
+        )
         self.assertEqual(sources[0]["recognition"], "structured")
 
         # Non-existent page returns not_found / 3

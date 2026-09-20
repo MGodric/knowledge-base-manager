@@ -172,23 +172,22 @@ def test_explicit_external_local_label(line: str) -> bool:
     )
 
 
-_SOURCE_FIELD_NAME = (
+_CONTROL_FIELD_NAME = (
     r"(?:verified|last\s+verified|验证日期|已验证|revision|"
     r"version[-_ ]?state|版本状态|版本|project[-_ ]?id|项目标识|"
-    r"project[-_ ]?relative(?:\s+source)?|项目相对路径|相对路径|"
-    r"supports?|支持范围|支持)"
+    r"project[-_ ]?relative(?:\s+source)?|项目相对路径|相对路径)"
 )
 _SOURCE_TOKEN_RE = re.compile(
     r"(?i)(?:verified|last\s+verified|验证日期|已验证|revision|"
     r"version[-_ ]?state|版本状态|版本|project[-_ ]?id|项目标识|"
     r"kb-external-local)"
 )
-_SOURCE_FIELD_LABEL_RE = re.compile(rf"(?i){_SOURCE_FIELD_NAME}\s*[:：]")
-_SOURCE_FIELD_BEFORE_CODE_RE = re.compile(
-    rf"(?i)^\s*{_SOURCE_FIELD_NAME}\s*[:：]\s*$"
+_CONTROL_FIELD_LABEL_RE = re.compile(rf"(?i){_CONTROL_FIELD_NAME}\s*[:：]")
+_CONTROL_FIELD_BEFORE_CODE_RE = re.compile(
+    rf"(?i)^\s*{_CONTROL_FIELD_NAME}\s*[:：]\s*$"
 )
-_WHOLE_CODE_FIELD_RE = re.compile(
-    rf"(?is)^\s*{_SOURCE_FIELD_NAME}\s*[:：]\s*[^;；\r\n]+[;；]?\s*$"
+_WHOLE_CODE_CONTROL_FIELD_RE = re.compile(
+    rf"(?is)^\s*{_CONTROL_FIELD_NAME}\s*[:：]\s*[^;；\r\n]+[;；]?\s*$"
 )
 
 
@@ -220,12 +219,12 @@ def _code_token_can_supply_source_field(
     stripped_content = content.strip()
     if (
         not local_prefix.strip()
-        and len(_SOURCE_FIELD_LABEL_RE.findall(stripped_content)) == 1
-        and _WHOLE_CODE_FIELD_RE.fullmatch(stripped_content)
+        and len(_CONTROL_FIELD_LABEL_RE.findall(stripped_content)) == 1
+        and _WHOLE_CODE_CONTROL_FIELD_RE.fullmatch(stripped_content)
     ):
         return True
 
-    return _SOURCE_FIELD_BEFORE_CODE_RE.fullmatch(local_prefix) is not None
+    return _CONTROL_FIELD_BEFORE_CODE_RE.fullmatch(local_prefix) is not None
 
 
 def _inline_source_projection(token: Token) -> str:
@@ -253,6 +252,37 @@ def _inline_source_projection(token: Token) -> str:
     return "".join(chars)
 
 
+def _inline_support_projection(token: Token) -> str | None:
+    """Mask every parser-confirmed code/math region for support-field locating.
+
+    Unlike the source-field projection, support text must retain inline Markdown in
+    its returned value.  This view is used only to locate a support label and its
+    boundary; its offsets therefore remain aligned with the original inline source.
+    A missing source span cannot safely supply those offsets, so callers fail closed.
+    """
+    source = token.content or ""
+    chars = list(source)
+    for child in token.children or []:
+        if child.type not in (
+            "code_inline",
+            "math_inline",
+            "math_inline_double",
+        ):
+            continue
+        start = child.meta.get(_SOURCE_START_META)
+        end = child.meta.get(_SOURCE_END_META)
+        if (
+            not isinstance(start, int)
+            or not isinstance(end, int)
+            or start < 0
+            or end <= start
+            or end > len(source)
+        ):
+            return None
+        _mask_source_interval(chars, start, end)
+    return "".join(chars)
+
+
 def _inline_line_map(token: Token) -> list[int] | None:
     """Map parent inline-content lines to document lines when the block map is exact."""
     if not token.map:
@@ -272,6 +302,44 @@ def _inline_projected_lines(token: Token) -> dict[int, str] | None:
     if len(projected) != len(line_map):
         return None
     return dict(zip(line_map, projected, strict=True))
+
+
+def _inline_support_source_lines(token: Token) -> dict[int, tuple[str, str]] | None:
+    """Return aligned support projection and original inline source by document line."""
+    line_map = _inline_line_map(token)
+    projection = _inline_support_projection(token)
+    if line_map is None or projection is None:
+        return None
+    projected_lines = projection.split("\n")
+    source_lines = (token.content or "").split("\n")
+    if len(projected_lines) != len(line_map) or len(source_lines) != len(line_map):
+        return None
+    return dict(
+        zip(line_map, zip(projected_lines, source_lines, strict=True), strict=True)
+    )
+
+
+_SUPPORT_FIELD_LABEL_RE = re.compile(
+    r"(?i)(?:supports?|支持范围|支持)\s*[:：]"
+)
+_SUPPORT_FIELD_END_RE = re.compile(r"[;；]")
+
+
+def _support_text_from_aligned_line(
+    projected_line: str, source_line: str
+) -> str | None:
+    """Extract the first real support field while preserving its original Markdown."""
+    if len(projected_line) != len(source_line):
+        return None
+    match = _SUPPORT_FIELD_LABEL_RE.search(projected_line)
+    if match is None:
+        return None
+    value_start = match.end()
+    while value_start < len(source_line) and source_line[value_start].isspace():
+        value_start += 1
+    end_match = _SUPPORT_FIELD_END_RE.search(projected_line, value_start)
+    end = end_match.start() if end_match else len(projected_line)
+    return source_line[value_start:end].strip() or None
 
 
 def _token_source_document_span(
@@ -701,17 +769,29 @@ class ParsedMarkdownPage:
                     )
 
     def _extract_sources(self) -> None:
-        line_candidates: dict[int, list[str]] = {}
+        line_candidates: dict[int, list[tuple[str, str | None, str | None]]] = {}
         block_candidates: list[tuple[int, int, str]] = []
         for token in self.tokens:
             if token.type != "inline" or not token.children:
                 continue
             projection = _inline_source_projection(token)
             projected_lines = _inline_projected_lines(token)
+            support_source_lines = _inline_support_source_lines(token)
             if projected_lines is not None:
                 for line_no, projected_line in projected_lines.items():
                     if _SOURCE_TOKEN_RE.search(projected_line):
-                        line_candidates.setdefault(line_no, []).append(projected_line)
+                        support_line = (
+                            support_source_lines.get(line_no)
+                            if support_source_lines is not None
+                            else None
+                        )
+                        line_candidates.setdefault(line_no, []).append(
+                            (
+                                projected_line,
+                                support_line[0] if support_line is not None else None,
+                                support_line[1] if support_line is not None else None,
+                            )
+                        )
                 continue
 
             # An inline block without an exact source-line map may still contain a
@@ -725,7 +805,8 @@ class ParsedMarkdownPage:
 
         src_count = 0
         for line_no in sorted(line_candidates):
-            projected_line = "; ".join(line_candidates[line_no])
+            candidate_lines = line_candidates[line_no]
+            projected_line = "; ".join(item[0] for item in candidate_lines)
             raw_line = self.lines[line_no - 1] if 1 <= line_no <= len(self.lines) else ""
 
             # Find metadata
@@ -763,11 +844,15 @@ class ParsedMarkdownPage:
                 (rel_m.group("rel").strip() or None) if rel_m else None
             )
 
-            sup_m = re.search(
-                r"(?i)(?:supports?|支持范围|支持)\s*[:：]\s*(?P<sup>[^;；\r\n]+)",
-                projected_line,
-            )
-            support_text = (sup_m.group("sup").strip() or None) if sup_m else None
+            support_text = None
+            for _, support_projection, support_source in candidate_lines:
+                if support_projection is None or support_source is None:
+                    continue
+                support_text = _support_text_from_aligned_line(
+                    support_projection, support_source
+                )
+                if support_text is not None:
+                    break
 
             # Bind to genuine same-line LinkOccurrence on this exact line
             matching_links = [

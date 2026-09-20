@@ -8,12 +8,18 @@ import sys
 import unittest
 from pathlib import Path
 
+from markdown_it.token import Token
+
 # Add scripts directory to sys.path
 TEST_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = TEST_DIR.parent
 sys.path.insert(0, str(PROJECT_ROOT / "knowledge-base-manager" / "scripts"))
 
-from kb_core.markdown_reader import parse_markdown_page, test_high_confidence_math
+from kb_core.markdown_reader import (
+    _inline_support_source_lines,
+    parse_markdown_page,
+    test_high_confidence_math,
+)
 from kb_core.paths import (
     assert_no_redirecting_reparse_point,
     get_canonical_path,
@@ -293,6 +299,91 @@ updated: 2026-09-13
         self.assertEqual(src.span["start_line"], 10)
         self.assertEqual(src.span["end_line"], 10)
 
+    def test_support_text_preserves_inline_markdown_and_ignores_internal_semicolons(self):
+        support = (
+            "旧 audit `NameError` 回归、`第二段` 与 $\\alpha(x)$，"
+            "`内部; 分号` 和 $\\beta; \\gamma$ 保留"
+        )
+        content = (
+            "# Page\n\n"
+            "[Doc](source.md); project-id: demo; project-relative source: source.md; "
+            "verified: 2026-09-13; revision: abc; supports: "
+            + support
+            + "; 后续字段不是支持说明。\n"
+        )
+        parsed, _ = parse_markdown_page(content)
+        self.assertEqual(len(parsed.sources), 1)
+        src = parsed.sources[0]
+        self.assertEqual(src.support_text, support)
+        self.assertEqual(src.verified, "2026-09-13")
+        self.assertEqual(src.revision, "abc")
+        self.assertEqual(src.recognition, "structured")
+
+    def test_support_text_does_not_allow_embedded_code_fields_to_override_metadata(self):
+        support = "说明 `verified: 1999-01-01; revision: fake` 仍然保留"
+        content = (
+            "# Page\n\n"
+            "[Doc](source.md); project-id: demo; project-relative source: source.md; "
+            "supports: "
+            + support
+            + "; verified: 2026-09-13; revision: abc;\n"
+        )
+        parsed, _ = parse_markdown_page(content)
+        self.assertEqual(len(parsed.sources), 1)
+        src = parsed.sources[0]
+        self.assertEqual(src.support_text, support)
+        self.assertEqual(src.verified, "2026-09-13")
+        self.assertEqual(src.revision, "abc")
+        self.assertEqual(src.recognition, "structured")
+
+    def test_support_code_value_cannot_supply_control_fields(self):
+        support = "`verified: 1999-01-01; revision: fake`"
+        content = (
+            "# Page\n\n"
+            "[Doc](source.md); project-id: demo; project-relative source: source.md; "
+            "supports: "
+            + support
+            + "; verified: 2026-09-13; revision: abc;\n"
+        )
+        parsed, _ = parse_markdown_page(content)
+        self.assertEqual(len(parsed.sources), 1)
+        src = parsed.sources[0]
+        self.assertEqual(src.support_text, support)
+        self.assertEqual(src.verified, "2026-09-13")
+        self.assertEqual(src.revision, "abc")
+        self.assertEqual(src.recognition, "structured")
+
+    def test_code_only_support_label_is_not_a_source(self):
+        parsed, _ = parse_markdown_page("# Page\n\n`supports: fake`\n")
+        self.assertEqual(parsed.sources, [])
+
+    def test_support_text_aliases_and_ordinary_values_remain_compatible(self):
+        values = (
+            ("supports:", "`完整字段值`"),
+            ("supports:", "普通支持说明"),
+            ("支持范围:", "中文范围说明"),
+            ("支持:", "中文支持说明"),
+        )
+        content = "# Page\n\n" + "".join(
+            "[Doc](source.md); project-id: demo; project-relative source: source.md; "
+            f"verified: 2026-09-13; revision: abc; {label} {value};\n"
+            for label, value in values
+        )
+        parsed, _ = parse_markdown_page(content)
+        self.assertEqual([src.support_text for src in parsed.sources], [value for _, value in values])
+        self.assertTrue(all(src.recognition == "structured" for src in parsed.sources))
+
+    def test_support_text_view_fails_closed_without_precise_parser_mapping(self):
+        token = Token("inline", "", 0)
+        token.content = "supports: `NameError`"
+        token.map = [0, 2]
+        token.children = []
+        self.assertIsNone(_inline_support_source_lines(token))
+
+        token.map = [0, 1]
+        token.children = [Token("code_inline", "", 0)]
+        self.assertIsNone(_inline_support_source_lines(token))
+
 
     def test_math_span_not_fake_link(self):
         content = "# Title\n\n$[ghost](ghost.md)$\n"
@@ -330,7 +421,10 @@ updated: 2026-09-13
         self.assertFalse(link_b.is_direct_collection)
 
     def test_math_and_inline_code_source_not_extracted(self):
-        declaration = "[fake](ghost.md); project-id: demo; project-relative source: ghost.md; verified: 2026-09-13; revision: abc;"
+        declaration = (
+            "[fake](ghost.md); project-id: demo; project-relative source: ghost.md; "
+            "verified: 2026-09-13; revision: abc; supports: fake support;"
+        )
         # Inside inline math
         parsed_math, _ = parse_markdown_page("# Sample\n\n$" + declaration + "$\n")
         self.assertEqual(len(parsed_math.sources), 0)

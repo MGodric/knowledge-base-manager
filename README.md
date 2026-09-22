@@ -13,7 +13,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 - **Standard Plain-Text Format**: The knowledge base consists strictly of standard Markdown files. It can be viewed and edited using standard text editors independently of AI assistants or proprietary software.
 - **Cross-Project Synthesis**: Extract technical decisions, architectural patterns, and troubleshooting notes across repositories into reusable knowledge entries.
 - **Human and Agent Usability**: Structured for human readability while maintaining explicit boundaries and schema metadata for accurate AI retrieval.
-- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases or background web services. Python powers the local authoring and reading toolset; PowerShell 7 powers static site generation and portable backup.
+- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases, PowerShell, or background web services. Pure Python powers the entire authoring, reading, static site generation, and backup/restore toolset.
 
 ---
 
@@ -39,10 +39,9 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 
 ## Requirements
 
-- **Operating System**: Windows
-- **Python**: Python 3.12+ (tested on Windows CPython 3.14.7; dependencies: `PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`) for the knowledge authoring and reading CLI toolset (`scripts/kb.py`: resolve, inspect, search, read, audit)
-- **PowerShell**: PowerShell 7 or later (`pwsh`; Windows PowerShell 5.1 is not supported) for static site generation (`kb-build-static.ps1`) and portable backup/restore (`kb-backup.ps1`)
-- **Runtime Dependencies**: No Node.js, databases, background services, or third-party PowerShell modules required at runtime.
+- **Operating System**: Windows (locally verified); Ubuntu 24.04 x86_64 on ext4 with Python 3.12.3 (native tests passed). The full CI matrix remains pending. macOS compatibility is deferred and is outside the current acceptance and CI scope.
+- **Python**: Python 3.12+ (CPython 3.12 or 3.14 recommended) for running the CLI toolset (`scripts/kb.py`: resolve, inspect, search, read, audit, build-static, backup, verify-backup, restore).
+- **Runtime Dependencies**: Pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`, `mdurl 0.1.2`) are bundled directly within `knowledge-base-manager/vendor/`. End users do not need `pip install`, virtual environments, external packages, Node.js, databases, or background services at runtime.
 
 ---
 
@@ -103,7 +102,8 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | Antigravity native integration | Planned | Direct adapter for Antigravity skills, rules, and workflows. |
 | ProjectSnapshot backup / Relink restore | Planned | Strategy for whole-repository external snapshots is under design. |
 | Full-text search UI & backlinks | Planned | Exploring offline, serverless client-side implementations. |
-| Cross-platform support (Linux / macOS) | Planned | Awaiting cross-platform runtime and path abstraction work. |
+| Linux runtime | Verified on Ubuntu 24.04 x86_64 | Native tests passed on ext4 with Python 3.12.3 and Node 22; other configurations and the full CI matrix remain unverified. |
+| macOS compatibility | Deferred | Outside the current acceptance and CI scope; no support claim. |
 
 ---
 
@@ -139,34 +139,31 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 Python-based tools and structural validation use a project-local `.venv` and pinned
 [development dependencies](requirements-dev.txt). See [development setup and the
 shared Codex/Gemini commands](DEVELOPMENT.md). Python (with PyYAML and markdown-it-py) powers
-the authoring CLI toolset (`kb.py`), while static site build and backup/restore remain standalone PowerShell 7 scripts.
+the entire CLI toolset (`kb.py`), including authoring, reading, static site generation, and backup/restore.
 
 ```text
 knowledge-base-manager/   # Distributable Skill source
-tests/                    # Automated PowerShell and Node.js test suites
+tests/                    # Automated Python and Node.js test suites
 ```
 
 All tests run against isolated temporary directories and never alter live knowledge bases:
 
-```powershell
-# 1. Root resolution and audit
-pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
-pwsh -NoProfile -File ./tests/test-kb-audit.ps1
+```bash
+# 1. Run all test suites:
+python -X utf8 ./tests/run-all-tests.py
 
-# 2. Backup and restore lifecycle
-pwsh -NoProfile -File ./tests/test-kb-backup.ps1
+# 2. Or run individual Python suites:
+python -X utf8 ./tests/test-kb-python-parser.py
+python -X utf8 ./tests/test-kb-python-query.py
+python -X utf8 ./tests/test-kb-python-audit.py
+python -X utf8 ./tests/test-kb-python-workflow.py
+python -X utf8 ./tests/test-kb-python-backup.py
+python -X utf8 ./tests/test-kb-python-static.py
 
-# 3. Static site builder and curated navigation
-pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
-pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
-
-# 4. Graph model and interactive component
-pwsh -NoProfile -File ./tests/test-kb-static-graph.ps1
-node ./tests/test-kb-static-graph-component.cjs
-
-# 5. Table of contents and code-copy interactions
+# 3. Node.js DOM component unit tests:
 node ./tests/test-kb-static-toc.cjs
 node ./tests/test-kb-static-copy.cjs
+node ./tests/test-kb-static-graph-component.cjs
 ```
 
 > *Note: Node.js is used only for development unit testing with a simulated DOM. Installing or running the Skill does not require Node.js.*

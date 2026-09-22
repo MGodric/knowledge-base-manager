@@ -1,6 +1,6 @@
 # Python development environment
 
-Python (with PyYAML and markdown-it-py) powers the knowledge-base management CLI toolset (`kb.py`: resolve, inspect, search, read, audit). PowerShell 7+ remains the runtime for static site generation (`kb-build-static.ps1`) and backup/restore (`kb-backup.ps1`). This environment provides the shared Python environment for developing and validating both the Python core and the Skill.
+Python (with PyYAML and markdown-it-py) powers the entire knowledge-base management CLI toolset (`kb.py`: resolve, inspect, search, read, audit, build-static, backup, verify-backup, restore). All legacy PowerShell scripts have been completely replaced with cross-platform Python. This environment provides the shared Python environment for developing and validating both the Python core and the Skill.
 
 ## Create the environment
 
@@ -45,24 +45,44 @@ if ($LASTEXITCODE -ne 0) { throw 'Environment check failed.' }
 & '.\.venv\Scripts\python.exe' -X utf8 -m pip check
 if ($LASTEXITCODE -ne 0) { throw 'Dependency check failed.' }
 
+# Verify bundled vendor dependencies integrity
+& '.\.venv\Scripts\python.exe' -X utf8 tools/vendor_dependencies.py --check
+if ($LASTEXITCODE -ne 0) { throw 'Vendor integrity check failed.' }
+
 # Locate the installed skill-creator's existing validator on this machine.
 # Replace the placeholder; the validator is not bundled with this repository.
 $skillValidator = 'C:\path\to\skill-creator\scripts\quick_validate.py'
 & '.\.venv\Scripts\python.exe' -X utf8 $skillValidator '.\knowledge-base-manager'
 if ($LASTEXITCODE -ne 0) { throw 'Skill structural validation failed.' }
 
-# Run Python core test suites
+# Run all test suites
+& '.\.venv\Scripts\python.exe' -X utf8 tests/run-all-tests.py
+
+# Or run individual Python core test suites
 $projectPython = (Resolve-Path '.\.venv\Scripts\python.exe').Path
 & $projectPython -B -X utf8 tests/test-kb-python-parser.py
 & $projectPython -B -X utf8 tests/test-kb-python-query.py
 & $projectPython -B -X utf8 tests/test-kb-python-audit.py
 & $projectPython -B -X utf8 tests/test-kb-python-workflow.py
+& $projectPython -B -X utf8 tests/test-kb-python-backup.py
+& $projectPython -B -X utf8 tests/test-kb-python-static.py
+& $projectPython -B -X utf8 tests/test-kb-python-vendor.py
 ```
 
 The validator requires an installed `skill-creator`; it is an external development
 tool, not a runtime dependency. If unavailable, report that limitation and perform
 the equivalent manual structural checks. Do not report manual checks as a passed
 validator run. Structural validation does not replace relevant behavior tests.
+
+## Bundled Vendor Dependencies
+
+Pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`, `mdurl 0.1.2`) are bundled under `knowledge-base-manager/vendor/` with deterministic `manifest.json` and `THIRD_PARTY.md`. End users do not require virtual environments or `pip install` at runtime.
+
+Vendor maintenance uses standard library only via `tools/vendor_dependencies.py`:
+- `python -X utf8 tools/vendor_dependencies.py --check`: Read-only offline verification of vendor files and manifest SHA-256 digests.
+- `python -X utf8 tools/vendor_dependencies.py --rebuild`: Deterministic offline clean extraction and manifest generation from cached wheels/sdist.
+- `python -X utf8 tools/vendor_dependencies.py --refresh`: Offline check followed by rebuild if needed.
+- `python -X utf8 tools/vendor_dependencies.py --fetch`: Download pinned packages from PyPI to local cache (maintainer-only).
 
 ## Windows sandbox boundary
 

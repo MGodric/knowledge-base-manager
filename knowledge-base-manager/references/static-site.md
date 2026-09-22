@@ -4,22 +4,22 @@ Use this mode to generate a recursively browsable HTML reading copy while Markdo
 
 ## Build
 
-The bundled script requires PowerShell 7 and uses its built-in Markdown renderer. It does not install or invoke Python, Node.js, npm, a site generator, a database, a CDN, or a web server. The Skill includes the precompiled KaTeX 0.18.1 browser distribution under `assets/katex/` for offline formula rendering; its MIT license and upstream provenance are stored with those assets.
+The builder is a cross-platform Python CLI command powered by `markdown-it-py`. It does not require PowerShell, Node.js, npm, a separate site generator, a database, a CDN, or a web server. The Skill includes the precompiled KaTeX 0.18.1 browser distribution under `assets/katex/` for offline formula rendering; its MIT license and upstream provenance are stored with those assets.
 
-```powershell
-pwsh -NoProfile -File <skill-directory>/scripts/kb-build-static.ps1 `
-  -Root <verified-knowledge-base-root> `
-  -Destination <separate-static-output-directory>
+```bash
+python -X utf8 ./scripts/kb.py build-static \
+  --root <verified-knowledge-base-root> \
+  --destination <separate-static-output-directory>
 ```
 
 The default is incremental. When the user explicitly requests a complete
-regeneration, add `-Force`:
+regeneration, add `--force`:
 
-```powershell
-pwsh -NoProfile -File <skill-directory>/scripts/kb-build-static.ps1 `
-  -Root <verified-knowledge-base-root> `
-  -Destination <separate-static-output-directory> `
-  -Force
+```bash
+python -X utf8 ./scripts/kb.py build-static \
+  --root <verified-knowledge-base-root> \
+  --destination <separate-static-output-directory> \
+  --force
 ```
 
 Forced mode regenerates every Markdown page and generated directory index and
@@ -41,7 +41,7 @@ R_K = ARK_{K_1} \circ SR \circ SB \circ ARK_{K_0}
 $$
 ```
 
-PowerShell's Markdown renderer converts these forms to math-marked HTML, then the locally bundled KaTeX auto-render script typesets them in the browser. Backtick code spans and fenced code blocks remain code and are intentionally not treated as formulas. Do not mechanically convert every code span to math.
+The Markdown renderer converts these forms to math-marked HTML, then the locally bundled KaTeX auto-render script typesets them in the browser. Backtick code spans and fenced code blocks remain code and are intentionally not treated as formulas. Do not mechanically convert every code span to math.
 
 The source knowledge base is read-only. Do not place the destination at, above, or below the knowledge-base root. Reject junctions and symbolic links in either data path. The builder does not copy or publish content reached through links outside `content_dir`.
 
@@ -143,7 +143,7 @@ The destination contains `.kb-static-manifest.json`. Each source-page record bin
 The JSON result exposes `force_rebuild` so callers can distinguish an explicit
 full regeneration from a normal incremental run.
 
-The manifest and generated HTML are cache-like output, not knowledge content or a backup. Rebuild them from Markdown after loss. A successful incremental result does not replace `kb-audit.ps1`; audit the knowledge base separately when link or content correctness matters.
+The manifest and generated HTML are cache-like output, not knowledge content or a backup. Rebuild them from Markdown after loss. A successful incremental result does not replace `python -X utf8 ./scripts/kb.py audit`; audit the knowledge base separately when link or content correctness matters.
 
 For ordinary accepted content updates, build once after the batch audit and
 acceptance. A second idempotence build is reserved for a generator change,

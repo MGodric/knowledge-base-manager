@@ -13,7 +13,7 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 - **标准纯文本格式**：知识库完全由标准 Markdown 文件构成，脱离 AI 助手或特定软件后，仍可直接使用通用文本编辑器查阅与编辑。
 - **跨项目知识提炼**：将分散在各个开发项目中的技术方案、排查记录与规范沉淀为可跨项目复用的知识条目。
 - **人机协同可读**：针对人类阅读与 AI 检索进行结构规范化，兼顾文章可读性与模型检索边界。
-- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库或常驻服务。Python 驱动本地知识写作与检索工具集；PowerShell 7 驱动静态站点生成与便携备份。
+- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库、PowerShell 或常驻服务。纯 Python 驱动全套本地写作、检索、静态站点生成与便携备份工具集。
 
 ---
 
@@ -39,16 +39,15 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 
 ## 运行环境要求
 
-- **操作系统**：Windows
-- **Python**：Python 3.12+（已在 Windows CPython 3.14.7 验证；依赖：`PyYAML 6.0.3`、`markdown-it-py 4.2.0`、`mdit-py-plugins 0.6.1`），用于知识库写作与辅助命令行工具集（`scripts/kb.py`：resolve, inspect, search, read, audit）
-- **PowerShell**：PowerShell 7 或更高版本（命令行直接调用 `pwsh`，不支持 Windows PowerShell 5.1），用于独立的静态站点生成（`kb-build-static.ps1`）与便携备份恢复（`kb-backup.ps1`）
-- **运行时依赖**：运行时不需要安装 Node.js、数据库、常驻服务或第三方 PowerShell 模块。
+- **操作系统**：Windows（本地已实测）；Ubuntu 24.04 x86_64 / ext4 / Python 3.12.3 已通过原生测试，完整 CI 矩阵待验证。macOS 兼容性延期，不纳入当前验收和 CI 范围。
+- **Python**：Python 3.12+（推荐 CPython 3.12 或 3.14），用于驱动 CLI 工具集（`scripts/kb.py`：resolve、inspect、search、read、audit、build-static、backup、verify-backup、restore）。
+- **运行时依赖**：纯 Python 运行时依赖（`PyYAML 6.0.3`、`markdown-it-py 4.2.0`、`mdit-py-plugins 0.6.1`、`mdurl 0.1.2`）已内置随 Skill 分发（`knowledge-base-manager/vendor/`）。最终用户在运行时无需执行 `pip install`、无需配置虚拟环境或安装外部包，也无需 Node.js、专有数据库或后台常驻服务。
 
 ---
 
-## 安装方式
+## 安装说明
 
-让 AI 助手调用安装器安装：
+在对话中告知 AI 助手通过 Skill 安装工具安装：
 
 ```text
 使用 $skill-installer 从以下地址安装 knowledge-base-manager：
@@ -103,7 +102,8 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 | Antigravity 原生适配 | 规划中 | 适配 Antigravity 工作流与规则/Skill 标准。 |
 | ProjectSnapshot 备份 / Relink 恢复 | 规划中 | 针对大型外部项目整库快照的策略仍在设计中。 |
 | 全文搜索索引 UI 与反向链接面板 | 规划中 | 后续在保持纯离线、无后端的前提下逐步演进。 |
-| 跨平台原生支持（Linux / macOS） | 规划中 | 待完成跨平台运行时与路径抽象适配。 |
+| Linux 原生支持 | Ubuntu 24.04 x86_64 已验证 | ext4 / Python 3.12.3 / Node 22 原生测试通过；其他配置及完整 CI 矩阵仍待验证。 |
+| macOS 兼容性 | 延期 | 不纳入当前验收和 CI 范围，不声明支持。 |
 
 ---
 
@@ -138,34 +138,31 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 Python 核心工具与结构验证统一使用项目 `.venv` 与固定版本的[开发依赖](requirements-dev.txt)。
 初始化、验证命令与 Codex/Gemini 共用约定见[开发环境说明](DEVELOPMENT.md)。
-Python（搭配 PyYAML 与 markdown-it-py）驱动写作命令行工具集（`kb.py`），静态站点构建与备份恢复保持为独立的 PowerShell 7 脚本。
+Python（搭配 PyYAML 与 markdown-it-py）驱动全套命令行工具集（`kb.py`），涵盖写作、阅读、静态站点构建与备份恢复。
 
 ```text
 knowledge-base-manager/   # 实际发布的 Skill 源码
-tests/                    # 自动化测试脚本（PowerShell + Node.js 离线环境）
+tests/                    # 自动化测试脚本（Python + Node.js 离线环境）
 ```
 
 测试均在隔离的临时目录中运行，绝不触碰真实知识库：
 
-```powershell
-# 1. 核心解析与审计
-pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
-pwsh -NoProfile -File ./tests/test-kb-audit.ps1
+```bash
+# 1. 运行全部测试套件：
+python -X utf8 ./tests/run-all-tests.py
 
-# 2. 备份与恢复全链路
-pwsh -NoProfile -File ./tests/test-kb-backup.ps1
+# 2. 或单独运行 Python 测试：
+python -X utf8 ./tests/test-kb-python-parser.py
+python -X utf8 ./tests/test-kb-python-query.py
+python -X utf8 ./tests/test-kb-python-audit.py
+python -X utf8 ./tests/test-kb-python-workflow.py
+python -X utf8 ./tests/test-kb-python-backup.py
+python -X utf8 ./tests/test-kb-python-static.py
 
-# 3. 静态站点构建与导航
-pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
-pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
-
-# 4. 图谱模型与交互组件
-pwsh -NoProfile -File ./tests/test-kb-static-graph.ps1
-node ./tests/test-kb-static-graph-component.cjs
-
-# 5. 文章目录与复制代码交互
+# 3. Node.js DOM 组件交互单元测试：
 node ./tests/test-kb-static-toc.cjs
 node ./tests/test-kb-static-copy.cjs
+node ./tests/test-kb-static-graph-component.cjs
 ```
 
 > *注：Node.js 仅用于开发阶段模拟 DOM 单元测试，安装和运行此 Skill 本身不需要安装 Node.js。*

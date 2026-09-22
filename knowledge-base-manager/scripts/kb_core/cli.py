@@ -9,6 +9,42 @@ from typing import Any
 
 from .model import Diagnostic, Envelope
 from .paths import resolve_root
+from .runtime_dependencies import ensure_runtime_dependencies
+
+
+_THIRD_PARTY_DEPENDENCIES = {
+    "yaml": "PyYAML",
+    "markdown_it": "markdown-it-py",
+    "mdit_py_plugins": "mdit-py-plugins",
+    "mdurl": "mdurl",
+}
+
+
+def dependency_missing_envelope(command: str, root: str | None, error: ImportError) -> Envelope | None:
+    """Translate only known third-party import failures into an actionable envelope."""
+    module = (error.name or "").split(".", 1)[0]
+    package = _THIRD_PARTY_DEPENDENCIES.get(module)
+    if package is None:
+        return None
+    return Envelope(
+        command=command,
+        status="failed",
+        root=root,
+        data=None,
+        diagnostics=[
+            Diagnostic(
+                code="DEPENDENCY_MISSING",
+                severity="error",
+                file=None,
+                span=None,
+                target=package,
+                message=(
+                    f"{package} is required from bundled vendor packages; please re-download "
+                    f"or reinstall the complete Skill distribution package ({sys.executable}). No output directory was created."
+                ),
+            )
+        ],
+    )
 
 
 def format_text_output(envelope: Envelope) -> str:
@@ -63,6 +99,69 @@ def format_text_output(envelope: Envelope) -> str:
                 loc = f" [{iss.get('file')}]" if iss.get("file") else ""
                 tgt = f" -> {iss.get('target')}" if iss.get("target") else ""
                 lines.append(f"[{iss.get('severity', '').upper()}] {iss.get('code')}{loc}{tgt} - {iss.get('message')}")
+        elif envelope.command == "backup":
+            lines.append(f"Backup status: {envelope.status}")
+            if "message" in data:
+                lines.append(f"Message: {data.get('message')}")
+            if data.get("plan"):
+                plan = data["plan"]
+                lines.append(f"Plan digest: {plan.get('plan_digest')}")
+                if "totals" in plan:
+                    t = plan["totals"]
+                    lines.append(
+                        f"Files: {t.get('all_source_files')} (manifest: {t.get('kb_manifest_files')}, content: {t.get('content_files')}, external: {t.get('external_files')})"
+                    )
+                if plan.get("files"):
+                    lines.append("Source files:")
+                    for f_rec in plan["files"]:
+                        kind = f_rec.get("kind", "")
+                        src = f_rec.get("source_path", "")
+                        port = f_rec.get("portable_path", "")
+                        extra = ""
+                        if kind == "external":
+                            extra = f" (project: {f_rec.get('project_id')}, source: {f_rec.get('project_relative_source')})"
+                        lines.append(f"  - [{kind}] {src} -> {port}{extra}")
+                if plan.get("ignored_legacy_paths"):
+                    lines.append("Ignored legacy paths:")
+                    for ign in plan["ignored_legacy_paths"]:
+                        lines.append(f"  - {ign.get('path')}: {ign.get('reason')}")
+            if data.get("change_summary"):
+                lines.append("Changes:")
+                for c in data["change_summary"]:
+                    lines.append(f"  - {c}")
+        elif envelope.command == "verify-backup":
+            lines.append(f"Verification status: {envelope.status}")
+            lines.append(f"Bundle: {data.get('bundle')}")
+            lines.append(f"Errors: {data.get('errors')}")
+            if data.get("issues"):
+                lines.append("Issues:")
+                for iss in data["issues"]:
+                    lines.append(f"  - {iss}")
+        elif envelope.command == "restore":
+            lines.append(f"Restore status: {envelope.status}")
+            if "message" in data:
+                lines.append(f"Message: {data.get('message')}")
+            if "bundle" in data:
+                lines.append(f"Bundle: {data.get('bundle')}")
+            if "destination" in data:
+                lines.append(f"Destination: {data.get('destination')}")
+            if "file_count" in data:
+                lines.append(f"Files restored: {data.get('file_count')}")
+        elif envelope.command == "build-static":
+            lines.append(f"Build static status: {envelope.status}")
+            if "destination" in data:
+                lines.append(f"Destination: {data.get('destination')}")
+            if "entry_page" in data:
+                lines.append(f"Entry page: {data.get('entry_page')}")
+            lines.append(
+                f"Pages generated: {data.get('generated')}, skipped: {data.get('skipped')}, removed: {data.get('removed')}"
+            )
+            lines.append(
+                f"KaTeX assets generated: {data.get('assets_generated')}, skipped: {data.get('assets_skipped')}"
+            )
+            lines.append(
+                f"Graph assets generated: {data.get('graph_assets_generated')}, skipped: {data.get('graph_assets_skipped')}"
+            )
 
     if envelope.diagnostics:
         lines.append("\nDiagnostics:")
@@ -221,10 +320,86 @@ def main(argv: list[str] | None = None) -> int:
     audit_parser._current_argv = argv
     audit_parser.add_argument("--root", required=True, help="Knowledge base root path")
     audit_parser.add_argument(
-        "--profile", choices=["legacy", "write"], default="legacy", help="Audit profile (default: legacy)"
+        "--profile", choices=["legacy", "write", "default"], default="legacy", help="Audit profile (default: legacy)"
     )
     audit_parser.add_argument(
         "--changed", action="append", default=[], help="Content-relative path of changed file"
+    )
+
+    # 6. backup
+    backup_parser = subparsers.add_parser(
+        "backup", parents=[fmt_parent], help="Plan or execute knowledge base backup"
+    )
+    backup_parser._cmd_name = "backup"
+    backup_parser._current_argv = argv
+    backup_parser.add_argument("--root", required=True, help="Knowledge base root path")
+    backup_parser.add_argument("--destination", required=True, help="Backup destination directory")
+    backup_parser.add_argument(
+        "--mode",
+        choices=["ReferenceComplete", "ProjectSnapshot"],
+        default="ReferenceComplete",
+        help="Backup mode (default: ReferenceComplete)",
+    )
+    backup_parser.add_argument(
+        "--ignore-legacy-path",
+        action="append",
+        default=[],
+        help="Ignored legacy path 'path|reason' (repeatable)",
+    )
+    backup_parser.add_argument(
+        "--execute", action="store_true", help="Execute confirmed backup"
+    )
+    backup_parser.add_argument(
+        "--confirmed-plan-digest", default=None, help="Confirmed plan digest required for execution"
+    )
+
+    # 7. verify-backup
+    verify_parser = subparsers.add_parser(
+        "verify-backup", parents=[fmt_parent], help="Verify portable backup bundle"
+    )
+    verify_parser._cmd_name = "verify-backup"
+    verify_parser._current_argv = argv
+    verify_parser.add_argument("--bundle", required=True, help="Portable backup bundle directory")
+
+    # 8. restore
+    restore_parser = subparsers.add_parser(
+        "restore", parents=[fmt_parent], help="Plan or execute portable backup restore"
+    )
+    restore_parser._cmd_name = "restore"
+    restore_parser._current_argv = argv
+    restore_parser.add_argument("--bundle", required=True, help="Portable backup bundle directory")
+    restore_parser.add_argument("--destination", required=True, help="Restore destination directory")
+    restore_parser.add_argument(
+        "--mode",
+        choices=["Portable", "Relink"],
+        default="Portable",
+        help="Restore mode (default: Portable)",
+    )
+    restore_parser.add_argument(
+        "--project-root-map", default=None, help="Project root map (for future Relink mode)"
+    )
+    restore_parser.add_argument(
+        "--execute", action="store_true", help="Execute restore"
+    )
+
+    # 9. build-static
+    build_static_parser = subparsers.add_parser(
+        "build-static", parents=[fmt_parent], help="Build local static HTML reading view"
+    )
+    build_static_parser._cmd_name = "build-static"
+    build_static_parser._current_argv = argv
+    build_static_parser.add_argument("--root", required=True, help="Knowledge base root path")
+    build_static_parser.add_argument(
+        "--destination", "--output", dest="destination", required=True, help="Output destination directory"
+    )
+    build_static_parser.add_argument(
+        "--force", action="store_true", help="Force rebuild all pages and rewrite assets"
+    )
+    build_static_parser.add_argument(
+        "--katex-assets-root", default=None, help="Local KaTeX assets directory to copy from"
+    )
+    build_static_parser.add_argument(
+        "--graph-assets-root", default=None, help="Local graph assets directory to copy from"
     )
 
     try:
@@ -239,6 +414,11 @@ def main(argv: list[str] | None = None) -> int:
     envelope: Envelope
 
     try:
+        if cmd in ("inspect", "search", "read", "audit", "backup", "verify-backup", "restore", "build-static"):
+            ok, dep_envelope = ensure_runtime_dependencies(command=cmd, root=getattr(args, "root", None))
+            if not ok and dep_envelope is not None:
+                return _output_envelope(dep_envelope, output_format, 3)
+
         if cmd == "resolve":
             exit_code, envelope = resolve_root(
                 requested=args.requested,
@@ -252,24 +432,10 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 from .query import inspect_command, read_command, search_command
             except ImportError as ie:
-                envelope = Envelope(
-                    command=cmd,
-                    status="failed",
-                    root=getattr(args, "root", None),
-                    data=None,
-                    diagnostics=[
-                        Diagnostic(
-                            code="DEPENDENCY_MISSING",
-                            severity="error",
-                            file=None,
-                            span=None,
-                            target=ie.name or "markdown-it-py",
-                            message=f"{ie.name or 'markdown-it-py'} is required; install it with the selected Python interpreter before retrying.",
-                        )
-                    ],
-                )
-                exit_code = 3
-                return _output_envelope(envelope, output_format, exit_code)
+                envelope = dependency_missing_envelope(cmd, getattr(args, "root", None), ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
 
             if cmd == "inspect":
                 inc_list = (
@@ -318,29 +484,77 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 from .audit import audit_command
             except ImportError as ie:
-                envelope = Envelope(
-                    command=cmd,
-                    status="failed",
-                    root=getattr(args, "root", None),
-                    data=None,
-                    diagnostics=[
-                        Diagnostic(
-                            code="DEPENDENCY_MISSING",
-                            severity="error",
-                            file=None,
-                            span=None,
-                            target=ie.name or "markdown-it-py",
-                            message=f"{ie.name or 'markdown-it-py'} is required; install it with the selected Python interpreter before retrying.",
-                        )
-                    ],
-                )
-                exit_code = 3
-                return _output_envelope(envelope, output_format, exit_code)
+                envelope = dependency_missing_envelope(cmd, getattr(args, "root", None), ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
 
+            audit_prof = "legacy" if args.profile == "default" else args.profile
             exit_code, envelope = audit_command(
                 root=args.root,
-                profile=args.profile,
+                profile=audit_prof,
                 changed=args.changed,
+            )
+        elif cmd == "backup":
+            try:
+                from .backup import execute_backup
+            except ImportError as ie:
+                envelope = dependency_missing_envelope(cmd, args.root, ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
+
+            exit_code, envelope = execute_backup(
+                root=args.root,
+                destination=args.destination,
+                mode=args.mode,
+                ignore_legacy_path=args.ignore_legacy_path,
+                execute=args.execute,
+                confirmed_plan_digest=args.confirmed_plan_digest,
+            )
+        elif cmd == "verify-backup":
+            try:
+                from .backup import verify_backup
+            except ImportError as ie:
+                envelope = dependency_missing_envelope(cmd, None, ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
+
+            exit_code, envelope = verify_backup(
+                bundle=args.bundle,
+            )
+        elif cmd == "restore":
+            try:
+                from .backup import restore_backup
+            except ImportError as ie:
+                envelope = dependency_missing_envelope(cmd, None, ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
+
+            exit_code, envelope = restore_backup(
+                bundle=args.bundle,
+                destination=args.destination,
+                mode=args.mode,
+                project_root_map=args.project_root_map,
+                execute=args.execute,
+            )
+        elif cmd == "build-static":
+            try:
+                from .static_build import execute_static_build
+            except ImportError as ie:
+                envelope = dependency_missing_envelope(cmd, args.root, ie)
+                if envelope is None:
+                    raise
+                return _output_envelope(envelope, output_format, 3)
+
+            exit_code, envelope = execute_static_build(
+                root=args.root,
+                destination=args.destination,
+                force=args.force,
+                katex_assets_root=args.katex_assets_root,
+                graph_assets_root=args.graph_assets_root,
             )
         else:
             envelope = Envelope(

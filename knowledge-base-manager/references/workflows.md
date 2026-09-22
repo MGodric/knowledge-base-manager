@@ -41,7 +41,7 @@ Capture favors speed and information preservation over taxonomy.
 5. Preserve facts, context, source pointers, uncertainties, and follow-up questions. Explicitly record the origin project context (for example `> 来源项目: [项目名称/相对链接]` or `> Origin project: [Project name/relative link]` in the entry preface). Never speculate, invent, or force-fit an origin project. If the note has no explicit origin project and no clearly related existing project/topic can be found in the knowledge base, categorize it definitively under a top-level miscellaneous/uncategorized category in the content's language (for example `杂项` in Chinese, or `Miscellaneous` / `Misc` in English, such as `> 来源项目: 杂项` or `> Origin project: Miscellaneous`) rather than stalling capture or inventing speculative associations. Retain whether the source describes an actual observation, a fictional example, or a simulated result; do not rewrite fiction or a hypothesis as an event that actually occurred. Label inference as inference.
 6. Apply [the Markdown content format](markdown-format.md): write mathematical notation as KaTeX-compatible `$...$` or `$$...$$`, and keep backticks only for literal code or identifiers.
 7. Add only obvious links; do not invent a final type or broad generalization.
-8. Run the audit (`python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile legacy` or `./scripts/kb-audit.ps1 -Root "<verified-root>"`), resolve every `MATH_CODE_SPAN` issue in the new file, and report the new file.
+8. Run the audit (`python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile legacy`), resolve every `MATH_CODE_SPAN` issue in the new file, and report the new file.
 
 An inbox entry may omit formal metadata. Never claim that capture has validated or promoted its contents.
 
@@ -106,18 +106,16 @@ When structuring or reorganizing the homepage guide (`content/index.md`) or coll
 1. Keep the homepage concise: an introductory summary, a curated collection region (`<!-- kb-nav:children -->`), and secondary type-browsing links outside that region.
 2. Inside the collection region, list stable standalone projects and topic maps. Projects belonging to a topic map may be listed as indented sub-items (2 or 4 spaces) under that map. This visual hierarchy guides the reader without establishing direct homepage parentage for the subordinate projects.
 3. Keep secondary type indexes (`projects/`, `maps/`, `knowledge/`, `sources/`, `decisions/`, `inbox/`) outside the collection region (for example in `<details><summary>按类型浏览</summary>`).
-4. Re-run `scripts/kb-audit.ps1` and `scripts/kb-build-static.ps1` to ensure collection syntax and breadcrumb chains remain intact.
+4. Re-run `python -X utf8 ./scripts/kb.py audit` and `python -X utf8 ./scripts/kb.py build-static` to ensure collection syntax and breadcrumb chains remain intact.
 
 ## Audit
 
 Run the audit tool in read-only mode:
 
-```powershell
+```bash
 python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile legacy
 # For write validation (Promote / Synthesis):
 python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile write --changed <rel-path> [--changed <rel-path>...]
-# Fallback:
-./scripts/kb-audit.ps1 -Root "<verified-root>"
 ```
 
-Use `--format json` (or PowerShell `-Format Json`) when another deterministic step must consume the result. Read `audit-rules.md` and `python-tools.md` before deciding whether or how to fix findings. A request to audit is not permission to repair.
+Use `--format json` when another deterministic step must consume the result. Read `audit-rules.md` and `python-tools.md` before deciding whether or how to fix findings. A request to audit is not permission to repair.

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Bundled pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`, `mdurl 0.1.2`) under `knowledge-base-manager/vendor/` with deterministic `manifest.json` and `THIRD_PARTY.md`, enabling end users to execute all CLI commands out-of-the-box without `pip install`, virtual environments, or external packages.
+- Added standard-library maintainer utility `tools/vendor_dependencies.py` supporting offline checksum verification (`--check`), deterministic extraction and rebuild (`--rebuild`), automatic refresh (`--refresh`), and package fetching (`--fetch`).
+- Added strict runtime dependency loader (`runtime_dependencies.py`) enforcing bytecode generation suppression (`sys.dont_write_bytecode = True`), pure-Python verification (`yaml.__with_libyaml__ is False`), preloaded conflicting module rejection, and structured diagnostic envelopes with exit code 3.
+- Added comprehensive vendor isolation and regression test suite `tests/test-kb-python-vendor.py` integrated into `run-all-tests.py` and GitHub Actions CI matrix.
+- Preserved schema v1 portable-bundle verification and restore. Backup plans now use an explicit version 2 digest with deterministic ordering; legacy confirmation digests require a new plan and confirmation before any write.
+
 ## 0.1.5a - 2026-09-12
 
 - Refined inbox curation and Promote workflows with project origin tracking, localized fallback categorization, and strict evidence grounding without ungrounded model extrapolations.

@@ -2,13 +2,14 @@
 
 // Development-only behavioral test: execute the actual generated-page script.
 // No browser, server, third-party package, or Node runtime dependency is added.
-const assert = require('node:assert/strict');
+const { emitComplete, instrument } = require('./node_test_report.cjs');
+const assert = instrument(require('node:assert/strict'));
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname,
-  '../knowledge-base-manager/scripts/kb-build-static.ps1'), 'utf8');
+  '../knowledge-base-manager/scripts/kb_core/static_build.py'), 'utf8');
 const match = source.match(/<script id="kb-copy-script">([\s\S]*?)<\/script>/);
 assert.ok(match, 'The page template must contain the actual copy script');
 const script = match[1].replace(/\{\{/g, '{').replace(/\}\}/g, '}');
@@ -122,4 +123,7 @@ async function main() {
   console.log('PASS: actual inline copy script; success, rejection, missing API, retry, exact text, no-code');
 }
 
-main().catch(error => { console.error(error); process.exitCode = 1; });
+main().then(
+  () => emitComplete({ suite: path.basename(__filename), assert }),
+  error => { console.error(error); process.exitCode = 1; }
+);

@@ -1,6 +1,6 @@
 """End-to-end small loop workflow test for Gate G4.
 
-Flow: resolve -> search -> read -> test-driven write -> audit write -> pwsh static build.
+Flow: resolve -> search -> read -> test-driven write -> audit write -> python static build.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from kb_core.audit import audit_command
 from kb_core.paths import resolve_root
 from kb_core.query import inspect_command, read_command, search_command
+from kb_core.static_build import execute_static_build
 from kb_python_test_support import cleanup_dir, create_temp_dir, write_file
 
 
@@ -161,32 +162,21 @@ updated: 2026-09-13
         self.assertEqual(aud_env.data["errors"], 0)
         self.assertEqual(aud_env.data["warnings"], 0)
 
-        # Step 6: PowerShell static site build interoperability check
-        build_script = SCRIPTS_DIR / "kb-build-static.ps1"
+        # Step 6: Static site build check
         out_site_dir = os.path.join(self.temp_dir, "site_out")
-        if build_script.is_file():
-            ps_cmd = [
-                "pwsh",
-                "-NoProfile",
-                "-File",
-                str(build_script),
-                "-Root",
-                resolved_root,
-                "-Destination",
-                out_site_dir,
-            ]
-            res = subprocess.run(ps_cmd, capture_output=True, text=True, encoding="utf-8")
-            self.assertEqual(
-                res.returncode,
-                0,
-                f"Static build failed (code {res.returncode}):\n{res.stdout}\n{res.stderr}",
-            )
-            # Verify that output site contains generated html
-            self.assertTrue(os.path.isfile(os.path.join(out_site_dir, "index.html")))
-            self.assertTrue(os.path.isfile(os.path.join(out_site_dir, "projects", "main.html")))
-            self.assertTrue(
-                os.path.isfile(os.path.join(out_site_dir, "knowledge", "new_method.html"))
-            )
+        build_code, build_env = execute_static_build(
+            root=resolved_root,
+            destination=out_site_dir,
+            force=True,
+        )
+        self.assertEqual(build_code, 0)
+        self.assertEqual(build_env.status, "success")
+        # Verify that output site contains generated html
+        self.assertTrue(os.path.isfile(os.path.join(out_site_dir, "index.html")))
+        self.assertTrue(os.path.isfile(os.path.join(out_site_dir, "projects", "main.html")))
+        self.assertTrue(
+            os.path.isfile(os.path.join(out_site_dir, "knowledge", "new_method.html"))
+        )
 
 
 if __name__ == "__main__":

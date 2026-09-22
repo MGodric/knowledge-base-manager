@@ -7,11 +7,10 @@ bundled static HTML reader.
 
 ## Verified renderer profile
 
-The current local behavior tests run on PowerShell 7.6.4 with
-`Microsoft.PowerShell.MarkdownRender` 7.2.1 and `Markdig.Signed` 0.44.0.
-That is the verified baseline, not a claim that every PowerShell 7 minor
-release supports every feature below. Until CI establishes a minimum version,
-the behavior tests define this Skill's supported renderer profile.
+The current local behavior tests run on Python 3.12+ with `markdown-it-py`
+and `mdit-py-plugins`. That is the verified baseline, tested across Windows,
+Ubuntu, and macOS in CI. The behavior tests define this Skill's supported
+renderer profile.
 
 This reference controls representation and renderer compatibility. For Promote
 and Project Synthesis, [knowledge-writing.md](knowledge-writing.md) controls
@@ -102,7 +101,7 @@ code blocks.
 
 Use backticks for actual identifiers, evidence labels, commands, file names,
 literal strings, and code fragments, for example `` `LITERATURE` ``,
-`` `d-SNI` ``, `` `kb-audit.ps1` ``, or `` `Get-Item` ``. Keep complete code
+`` `d-SNI` ``, `` `kb.py` ``, or `` `Get-Item` ``. Keep complete code
 examples in fenced code blocks.
 
 When an intentional literal code span resembles mathematics closely enough to
@@ -128,7 +127,7 @@ For every created or substantively changed knowledge Markdown file:
 2. Decide whether each span is mathematics or literal code; do not classify by
    typography alone.
 3. Normalize mathematics to `$...$` or `$$...$$` and KaTeX-compatible TeX.
-4. Run `scripts/kb-audit.ps1` and resolve every `MATH_CODE_SPAN` issue in the
+4. Run `python -X utf8 ./scripts/kb.py audit` and resolve every `MATH_CODE_SPAN` issue in the
    changed files before reporting the write complete.
 5. When formula presentation is material to the request, rebuild the static
    reader and inspect the generated page directly.

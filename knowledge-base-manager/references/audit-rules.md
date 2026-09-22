@@ -4,14 +4,11 @@ The audit script is read-only. It never creates, edits, moves, or deletes knowle
 
 ## Invocation and exit codes
 
-```powershell
-# Python CLI (supports legacy and write profiles):
+```bash
+# Python CLI (supports legacy and write profiles, text and json formats):
 python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile legacy
 python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile write --changed <rel-path> [--changed <rel-path>...]
-
-# PowerShell fallback:
-./scripts/kb-audit.ps1 -Root "<verified-root>"
-./scripts/kb-audit.ps1 -Root "<verified-root>" -Format Json
+python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --format json
 ```
 
 - Exit `0`: no errors; warnings may still be present.

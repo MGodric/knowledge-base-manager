@@ -71,34 +71,43 @@ def is_redirecting_reparse_point(path: str) -> bool:
         return False
 
     if IS_WINDOWS:
-        try:
-            attrs = kernel32.GetFileAttributesW(path)
-            if attrs == 0xFFFFFFFF or not (attrs & FILE_ATTRIBUTE_REPARSE_POINT):
-                return False
-
-            handle = CreateFileW(
-                path,
-                0,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                None,
-                OPEN_EXISTING,
-                FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
-                None,
+        attrs = kernel32.GetFileAttributesW(path)
+        if attrs == 0xFFFFFFFF:
+            raise OSError(
+                ctypes.get_last_error(),
+                f"GetFileAttributesW failed while checking reparse-point safety: {path}",
             )
-            if handle == INVALID_HANDLE_VALUE:
-                return False
-            try:
-                info = FileAttributeTagInfo()
-                if GetFileInformationByHandleEx(
-                    handle, 9, ctypes.byref(info), ctypes.sizeof(info)
-                ):
-                    # Bit 29 indicates name surrogate (junction, symlink, mount point)
-                    return bool(info.ReparseTag & 0x20000000)
-                return False
-            finally:
-                CloseHandle(handle)
-        except Exception:
+        if not (attrs & FILE_ATTRIBUTE_REPARSE_POINT):
             return False
+
+        handle = CreateFileW(
+            path,
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+            None,
+        )
+        if handle == INVALID_HANDLE_VALUE:
+            raise OSError(
+                ctypes.get_last_error(),
+                f"CreateFileW failed while checking reparse-point safety: {path}",
+            )
+        try:
+            info = FileAttributeTagInfo()
+            if not GetFileInformationByHandleEx(
+                handle, 9, ctypes.byref(info), ctypes.sizeof(info)
+            ):
+                raise OSError(
+                    ctypes.get_last_error(),
+                    f"GetFileInformationByHandleEx failed while checking reparse-point safety: {path}",
+                )
+            # Bit 29 indicates name surrogate (junction, symlink, mount point).
+            # Other reparse tags such as ordinary cloud hydration remain allowed.
+            return bool(info.ReparseTag & 0x20000000)
+        finally:
+            CloseHandle(handle)
     else:
         return os.path.islink(path)
 
@@ -123,6 +132,38 @@ def assert_no_redirecting_reparse_point(path: str, label: str = "path") -> None:
         if not parent or parent == cursor:
             break
         cursor = parent
+
+
+def get_safe_tree_files(root: str, label: str = "tree") -> list[str]:
+    """Verify no redirecting reparse points on root and every file/directory, and return a sorted list of all file paths."""
+    root_canon = get_canonical_path(root)
+    assert_no_redirecting_reparse_point(root_canon, label)
+    if not os.path.isdir(root_canon):
+        raise RuntimeError(f"BLOCKER: {label} is not a directory: {root_canon}")
+
+    files: list[str] = []
+    stack = [root_canon]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as it:
+                for entry in it:
+                    entry_path = get_canonical_path(entry.path)
+                    if is_redirecting_reparse_point(entry_path):
+                        raise RuntimeError(
+                            f"BLOCKER: {label} contains a junction or symbolic link: {entry_path}"
+                        )
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(entry_path)
+                    else:
+                        files.append(entry_path)
+        except OSError:
+            if is_redirecting_reparse_point(current):
+                raise RuntimeError(
+                    f"BLOCKER: {label} contains a junction or symbolic link: {current}"
+                )
+            raise
+    return sorted(files)
 
 
 def get_canonical_path(path: str, base_path: str | None = None) -> str:

@@ -142,3 +142,11 @@ def extract_front_matter(
     yaml_text = "".join(lines[1:end_index])
     fields, diagnostics = parse_yaml_text(yaml_text, filename=filename)
     return True, end_index, fields, diagnostics
+
+
+def read_yaml_fields(path: str) -> dict[str, Any]:
+    """Read a YAML file into a dict using RestrictedYamlLoader."""
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    data, _ = parse_yaml_text(content, filename=path)
+    return data

@@ -173,12 +173,12 @@ def test_explicit_external_local_label(line: str) -> bool:
 
 
 _CONTROL_FIELD_NAME = (
-    r"(?:verified|last\s+verified|验证日期|已验证|revision|"
+    r"(?:project|项目|verified|last\s+verified|验证日期|已验证|revision|"
     r"version[-_ ]?state|版本状态|版本|project[-_ ]?id|项目标识|"
     r"project[-_ ]?relative(?:\s+source)?|项目相对路径|相对路径)"
 )
 _SOURCE_TOKEN_RE = re.compile(
-    r"(?i)(?:verified|last\s+verified|验证日期|已验证|revision|"
+    r"(?i)(?:project|项目|verified|last\s+verified|验证日期|已验证|revision|"
     r"version[-_ ]?state|版本状态|版本|project[-_ ]?id|项目标识|"
     r"kb-external-local)"
 )

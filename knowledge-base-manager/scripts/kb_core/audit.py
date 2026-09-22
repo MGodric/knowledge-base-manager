@@ -515,6 +515,10 @@ def audit_command(
                 continue
 
             decoded_path = decoded_path_norm.replace("/", os.sep)
+            if "....\\" in decoded_path:
+                decoded_path = decoded_path.replace("....\\", "..\\..\\")
+            if "..../" in decoded_path:
+                decoded_path = decoded_path.replace("..../", "../../")
 
             if is_portable_source and not external_full:
                 add_issue(

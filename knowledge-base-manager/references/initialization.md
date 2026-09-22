@@ -5,7 +5,7 @@ Use this workflow to create a knowledge base or adopt an existing directory. Ini
 ## Resolve before creating
 
 1. Resolve the requested location using the rules in `SKILL.md`.
-   Run `scripts/kb.py resolve` (or `scripts/kb-resolve-root.ps1`); do not reimplement bare-name search ad hoc.
+   Run `python -X utf8 ./scripts/kb.py resolve`; do not reimplement bare-name search ad hoc.
 2. When the request contains only a folder name, search the active project source/workspace folders and show every exact match, or state that none exists.
 3. Stop and obtain an absolute path from the user regardless of the number of matches.
 4. Convert the confirmed root to an absolute canonical path and report it before writing.
@@ -34,7 +34,7 @@ For an empty root:
 3. Create a concise human-readable `content/index.md` in the language selected by the shared language rule.
 4. Add a short root `README.md` only when it helps a person understand the directory without opening the manifest.
 5. Do not add machine-specific absolute paths, generated HTML, databases, caches, or editor-specific configuration.
-6. Run the audit (`scripts/kb.py audit --root <root> --profile legacy` or `scripts/kb-audit.ps1`) and report every created path.
+6. Run the audit (`python -X utf8 ./scripts/kb.py audit --root <root> --profile legacy`) and report every created path.
 
 Initialization is idempotent: do not overwrite an existing file or replace a partially initialized tree.
 

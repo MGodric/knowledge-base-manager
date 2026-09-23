@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.1.5a). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.2.0). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 
@@ -39,9 +39,8 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 
 ## Requirements
 
-- **Operating System**: Windows (locally verified); Ubuntu 24.04 x86_64 on ext4 with Python 3.12.3 (native tests passed). The full CI matrix remains pending. macOS compatibility is deferred and is outside the current acceptance and CI scope.
-- **Python**: Python 3.12+ (CPython 3.12 or 3.14 recommended) for running the CLI toolset (`scripts/kb.py`: resolve, inspect, search, read, audit, build-static, backup, verify-backup, restore).
-- **Runtime Dependencies**: Pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`, `mdurl 0.1.2`) are bundled directly within `knowledge-base-manager/vendor/`. End users do not need `pip install`, virtual environments, external packages, Node.js, databases, or background services at runtime.
+- **Platform**: Windows; Ubuntu 24.04 x86_64 has also passed native tests.
+- **Runtime**: Python 3.12+. Required Python packages are bundled with the Skill.
 
 ---
 
@@ -103,7 +102,6 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | ProjectSnapshot backup / Relink restore | Planned | Strategy for whole-repository external snapshots is under design. |
 | Full-text search UI & backlinks | Planned | Exploring offline, serverless client-side implementations. |
 | Linux runtime | Verified on Ubuntu 24.04 x86_64 | Native tests passed on ext4 with Python 3.12.3 and Node 22; other configurations and the full CI matrix remain unverified. |
-| macOS compatibility | Deferred | Outside the current acceptance and CI scope; no support claim. |
 
 ---
 

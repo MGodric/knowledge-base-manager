@@ -4,7 +4,7 @@
 
 Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计的跨项目个人知识库管理 Skill。它以标准纯文本 Markdown 作为唯一事实源，不依赖专有笔记软件或外部数据库，用于在日常软件开发中沉淀、整理和检索知识，并支持生成包含离线关系图谱的静态阅读站点。
 
-> **当前状态**：公开预览版（v0.1.5a）。知识库与便携备份 Manifest Schema 版本均为 `1`。
+> **当前状态**：公开预览版（v0.2.0）。知识库与便携备份 Manifest Schema 版本均为 `1`。
 
 ---
 
@@ -39,9 +39,8 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 
 ## 运行环境要求
 
-- **操作系统**：Windows（本地已实测）；Ubuntu 24.04 x86_64 / ext4 / Python 3.12.3 已通过原生测试，完整 CI 矩阵待验证。macOS 兼容性延期，不纳入当前验收和 CI 范围。
-- **Python**：Python 3.12+（推荐 CPython 3.12 或 3.14），用于驱动 CLI 工具集（`scripts/kb.py`：resolve、inspect、search、read、audit、build-static、backup、verify-backup、restore）。
-- **运行时依赖**：纯 Python 运行时依赖（`PyYAML 6.0.3`、`markdown-it-py 4.2.0`、`mdit-py-plugins 0.6.1`、`mdurl 0.1.2`）已内置随 Skill 分发（`knowledge-base-manager/vendor/`）。最终用户在运行时无需执行 `pip install`、无需配置虚拟环境或安装外部包，也无需 Node.js、专有数据库或后台常驻服务。
+- **运行平台**：Windows；Ubuntu 24.04 x86_64 也已通过原生测试。
+- **运行环境**：Python 3.12+；所需 Python 包已随 Skill 附带。
 
 ---
 
@@ -103,7 +102,6 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 | ProjectSnapshot 备份 / Relink 恢复 | 规划中 | 针对大型外部项目整库快照的策略仍在设计中。 |
 | 全文搜索索引 UI 与反向链接面板 | 规划中 | 后续在保持纯离线、无后端的前提下逐步演进。 |
 | Linux 原生支持 | Ubuntu 24.04 x86_64 已验证 | ext4 / Python 3.12.3 / Node 22 原生测试通过；其他配置及完整 CI 矩阵仍待验证。 |
-| macOS 兼容性 | 延期 | 不纳入当前验收和 CI 范围，不声明支持。 |
 
 ---
 

@@ -1,12 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-09-23
 
-- Bundled pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-py-plugins 0.6.1`, `mdurl 0.1.2`) under `knowledge-base-manager/vendor/` with deterministic `manifest.json` and `THIRD_PARTY.md`, enabling end users to execute all CLI commands out-of-the-box without `pip install`, virtual environments, or external packages.
-- Added standard-library maintainer utility `tools/vendor_dependencies.py` supporting offline checksum verification (`--check`), deterministic extraction and rebuild (`--rebuild`), automatic refresh (`--refresh`), and package fetching (`--fetch`).
-- Added strict runtime dependency loader (`runtime_dependencies.py`) enforcing bytecode generation suppression (`sys.dont_write_bytecode = True`), pure-Python verification (`yaml.__with_libyaml__ is False`), preloaded conflicting module rejection, and structured diagnostic envelopes with exit code 3.
-- Added comprehensive vendor isolation and regression test suite `tests/test-kb-python-vendor.py` integrated into `run-all-tests.py` and GitHub Actions CI matrix.
-- Preserved schema v1 portable-bundle verification and restore. Backup plans now use an explicit version 2 digest with deterministic ordering; legacy confirmation digests require a new plan and confirmation before any write.
+- Replaced the PowerShell toolset with Python for knowledge-base queries, audits, static site generation, backup, and restore.
+- Bundled the required Python packages with the Skill; users need Python 3.12+ without a separate package installation.
+- Kept existing portable backup bundles restorable. Backup plans now use a new confirmation digest, so earlier plans must be regenerated before execution.
+- Added event-driven usage feedback and a Windows/Linux CI test matrix.
 
 ## 0.1.5a - 2026-09-12
 

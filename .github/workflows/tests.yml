@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           python -I -S -B -X utf8 knowledge-base-manager/scripts/kb.py --help
-          python -I -S -B -X utf8 knowledge-base-manager/scripts/kb.py resolve --requested .
+          python -I -S -B -X utf8 knowledge-base-manager/scripts/kb.py resolve --requested ./
 
       - name: Create virtual environment and install dependencies
         shell: bash

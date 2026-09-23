@@ -79,6 +79,17 @@ Detailed concept explanation.
         self.assertEqual(env.data["warnings"], 0, env.data["issues"])
         self.assertEqual(env.data["checked_scope"]["collection"], "none")
 
+    def test_link_filename_case_mismatch_is_not_silenced(self):
+        self._setup_valid_kb()
+        homepage = os.path.join(self.kb_root, "content", "index.md")
+        content = Path(homepage).read_text(encoding="utf-8")
+        write_file(homepage, content.replace("projects/proj_a.md", "projects/PROJ_A.md"))
+
+        wrong_case_target = os.path.join(self.kb_root, "content", "projects", "PROJ_A.md")
+        expected_code = "LINK_CASE_MISMATCH" if os.path.exists(wrong_case_target) else "LINK_BROKEN"
+        _, env = audit_command(root=self.kb_root, profile="legacy")
+        self.assertIn(expected_code, [issue["code"] for issue in env.data["issues"]])
+
     def test_write_profile_valid_kb(self):
         self._setup_valid_kb()
         code, env = audit_command(

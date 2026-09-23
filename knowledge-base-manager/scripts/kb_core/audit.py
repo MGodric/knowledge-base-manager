@@ -429,6 +429,10 @@ def audit_command(
                 others = ", ".join(x for x in rel_list if x != rel)
                 add_issue("error", "ID_DUPLICATE", rel, f"ID '{id_val}' is also used by: {others}.")
 
+    # Resolve each allowed root once so case checks compare paths in the same
+    # filesystem namespace, even when Windows canonicalizes an ancestor.
+    resolved_link_roots: dict[str, str] = {}
+
     # Validate links in all parsed markdown files
     for rel, (page_full, parsed_md) in parsed_pages.items():
         source_is_current = not rel.lower().startswith("inbox/") and not rel.lower().startswith("archive/")
@@ -607,8 +611,12 @@ def audit_command(
             try:
                 # Path(candidate_full).resolve() returns real casing on Windows
                 actual_full = str(Path(candidate_full).resolve())
-                exp_rel = get_normalized_relative_path(content_full, candidate_full)
-                act_rel = get_normalized_relative_path(content_full, actual_full)
+                if allowed_root not in resolved_link_roots:
+                    resolved_link_roots[allowed_root] = str(Path(allowed_root).resolve())
+                exp_rel = get_normalized_relative_path(allowed_root, candidate_full)
+                act_rel = get_normalized_relative_path(
+                    resolved_link_roots[allowed_root], actual_full
+                )
                 if exp_rel != act_rel:
                     add_issue(
                         "warning",

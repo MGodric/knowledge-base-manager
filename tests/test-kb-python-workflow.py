@@ -160,7 +160,7 @@ updated: 2026-09-13
         self.assertEqual(aud_code, 0)
         self.assertEqual(aud_env.status, "ok")
         self.assertEqual(aud_env.data["errors"], 0)
-        self.assertEqual(aud_env.data["warnings"], 0)
+        self.assertEqual(aud_env.data["warnings"], 0, aud_env.data["issues"])
 
         # Step 6: Static site build check
         out_site_dir = os.path.join(self.temp_dir, "site_out")

@@ -76,7 +76,7 @@ Detailed concept explanation.
         self.assertEqual(code, 0)
         self.assertEqual(env.status, "ok")
         self.assertEqual(env.data["errors"], 0)
-        self.assertEqual(env.data["warnings"], 0)
+        self.assertEqual(env.data["warnings"], 0, env.data["issues"])
         self.assertEqual(env.data["checked_scope"]["collection"], "none")
 
     def test_write_profile_valid_kb(self):
@@ -400,7 +400,7 @@ Content.
         )
         code, env = audit_command(self.kb_root, profile="legacy")
         self.assertEqual(code, 0)
-        self.assertEqual(len(env.data["issues"]), 0)
+        self.assertEqual(len(env.data["issues"]), 0, env.data["issues"])
 
     def test_nested_configured_homepage_directory_links_permitted(self):
         # R3-03: Configured homepage may link to top-level directories outside collections

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 - 2026-09-23
+
+- Replaced the PowerShell toolset with Python for knowledge-base queries, audits, static site generation, backup, and restore.
+- Bundled the required Python packages with the Skill; users need Python 3.12+ without a separate package installation.
+- Kept existing portable backup bundles restorable. Backup plans now use a new confirmation digest, so earlier plans must be regenerated before execution.
+- Added event-driven usage feedback and a Windows/Linux CI test matrix.
+
 ## 0.1.5a - 2026-09-12
 
 - Refined inbox curation and Promote workflows with project origin tracking, localized fallback categorization, and strict evidence grounding without ungrounded model extrapolations.

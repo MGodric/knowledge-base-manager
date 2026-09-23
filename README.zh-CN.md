@@ -4,7 +4,7 @@
 
 Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计的跨项目个人知识库管理 Skill。它以标准纯文本 Markdown 作为唯一事实源，不依赖专有笔记软件或外部数据库，用于在日常软件开发中沉淀、整理和检索知识，并支持生成包含离线关系图谱的静态阅读站点。
 
-> **当前状态**：公开预览版（v0.1.5a）。知识库与便携备份 Manifest Schema 版本均为 `1`。
+> **当前状态**：公开预览版（v0.2.0）。知识库与便携备份 Manifest Schema 版本均为 `1`。
 
 ---
 
@@ -13,7 +13,7 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 - **标准纯文本格式**：知识库完全由标准 Markdown 文件构成，脱离 AI 助手或特定软件后，仍可直接使用通用文本编辑器查阅与编辑。
 - **跨项目知识提炼**：将分散在各个开发项目中的技术方案、排查记录与规范沉淀为可跨项目复用的知识条目。
 - **人机协同可读**：针对人类阅读与 AI 检索进行结构规范化，兼顾文章可读性与模型检索边界。
-- **零外部服务依赖**：基于 PowerShell 7 与原生静态 Web 技术实现，运行时无需安装 Python、Node.js、数据库或网络服务。
+- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库、PowerShell 或常驻服务。纯 Python 驱动全套本地写作、检索、静态站点生成与便携备份工具集。
 
 ---
 
@@ -32,20 +32,21 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
   - **`ReferenceComplete` 备份**：归档知识库及已显式登记的外部关联源码，并计算 SHA-256 校验和。
   - **规划与确认机制**：备份规划为只读操作，生成明确的文件清单与摘要哈希；需用户二次确认且数据无漂移后执行导出。
   - **`Portable` 恢复**：解压恢复至未存在的目标目录，并自动执行完整性校验与审计。
+- **使用反馈机制（按需触发）**
+  - **事件驱动记录**：仅在实际观察到具体问题（检索遗漏、阅读误用、更新遗漏、工具故障）时记录带锚点的简短观察；不引入后台常驻服务、不发起额外全库扫描、不作无依据的质量保证声称。
 
 ---
 
 ## 运行环境要求
 
-- **操作系统**：Windows
-- **PowerShell**：PowerShell 7 或更高版本（命令行直接调用 `pwsh`，不支持 Windows PowerShell 5.1）
-- **运行时依赖**：不需要安装 Python、Node.js、数据库或第三方 PowerShell 模块。
+- **运行平台**：Windows；Ubuntu 24.04 x86_64 也已通过原生测试。
+- **运行环境**：Python 3.12+；所需 Python 包已随 Skill 附带。
 
 ---
 
-## 安装方式
+## 安装说明
 
-让 AI 助手调用安装器安装：
+在对话中告知 AI 助手通过 Skill 安装工具安装：
 
 ```text
 使用 $skill-installer 从以下地址安装 knowledge-base-manager：
@@ -96,10 +97,11 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 | 离线静态阅读站点构建 | 已支持 | 自适应布局、KaTeX 公式、响应式目录、代码复制。 |
 | 离线交互式 2D 关系图谱 | 已支持 | 首页内嵌、正文全屏弹窗、邻域聚焦特写、中英双语自适应。 |
 | ReferenceComplete 备份与恢复 | 已支持 | SHA-256 校验、防漂移二次确认、便携外部来源迁移。 |
+| 实际使用反馈机制（Anchor / Trigger） | 已支持 | 事件驱动的短记录机制，无后台常驻进程与额外扫描。 |
 | Antigravity 原生适配 | 规划中 | 适配 Antigravity 工作流与规则/Skill 标准。 |
 | ProjectSnapshot 备份 / Relink 恢复 | 规划中 | 针对大型外部项目整库快照的策略仍在设计中。 |
 | 全文搜索索引 UI 与反向链接面板 | 规划中 | 后续在保持纯离线、无后端的前提下逐步演进。 |
-| 跨平台原生支持（Linux / macOS） | 规划中 | 待完成跨平台运行时与路径抽象适配。 |
+| Linux 原生支持 | Ubuntu 24.04 x86_64 已验证 | ext4 / Python 3.12.3 / Node 22 原生测试通过；其他配置及完整 CI 矩阵仍待验证。 |
 
 ---
 
@@ -116,6 +118,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 - [Skill 主说明 (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [核心工作流指南 (workflows.md)](knowledge-base-manager/references/workflows.md)
+- [使用反馈机制 (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
 - [静态站点与图谱说明 (static-site.md)](knowledge-base-manager/references/static-site.md)
 - [知识综合工作流 (project-synthesis.md)](knowledge-base-manager/references/project-synthesis.md)
 - [知识写作规范 (knowledge-writing.md)](knowledge-base-manager/references/knowledge-writing.md)
@@ -131,32 +134,33 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 ## 开发与测试
 
+Python 核心工具与结构验证统一使用项目 `.venv` 与固定版本的[开发依赖](requirements-dev.txt)。
+初始化、验证命令与 Codex/Gemini 共用约定见[开发环境说明](DEVELOPMENT.md)。
+Python（搭配 PyYAML 与 markdown-it-py）驱动全套命令行工具集（`kb.py`），涵盖写作、阅读、静态站点构建与备份恢复。
+
 ```text
 knowledge-base-manager/   # 实际发布的 Skill 源码
-tests/                    # 自动化测试脚本（PowerShell + Node.js 离线环境）
+tests/                    # 自动化测试脚本（Python + Node.js 离线环境）
 ```
 
 测试均在隔离的临时目录中运行，绝不触碰真实知识库：
 
-```powershell
-# 1. 核心解析与审计
-pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
-pwsh -NoProfile -File ./tests/test-kb-audit.ps1
+```bash
+# 1. 运行全部测试套件：
+python -X utf8 ./tests/run-all-tests.py
 
-# 2. 备份与恢复全链路
-pwsh -NoProfile -File ./tests/test-kb-backup.ps1
+# 2. 或单独运行 Python 测试：
+python -X utf8 ./tests/test-kb-python-parser.py
+python -X utf8 ./tests/test-kb-python-query.py
+python -X utf8 ./tests/test-kb-python-audit.py
+python -X utf8 ./tests/test-kb-python-workflow.py
+python -X utf8 ./tests/test-kb-python-backup.py
+python -X utf8 ./tests/test-kb-python-static.py
 
-# 3. 静态站点构建与导航
-pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
-pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
-
-# 4. 图谱模型与交互组件
-pwsh -NoProfile -File ./tests/test-kb-static-graph.ps1
-node ./tests/test-kb-static-graph-component.cjs
-
-# 5. 文章目录与复制代码交互
+# 3. Node.js DOM 组件交互单元测试：
 node ./tests/test-kb-static-toc.cjs
 node ./tests/test-kb-static-copy.cjs
+node ./tests/test-kb-static-graph-component.cjs
 ```
 
 > *注：Node.js 仅用于开发阶段模拟 DOM 单元测试，安装和运行此 Skill 本身不需要安装 Node.js。*

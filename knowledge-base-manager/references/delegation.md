@@ -22,7 +22,7 @@ The designated editor must:
 1. Treat `KB_EDITOR_ROLE: designated` as the recursion guard and explicitly use `$knowledge-base-manager` with the exact root supplied in the handoff.
 2. Re-read source and target files before editing and apply the relevant workflow and safety reference. For semantic promotion, inventory material topics first and choose the complete set of distinct durable entries only after reading the authorized sources.
 3. Stay inside the authorized root and operation scope.
-4. Run `kb-audit.ps1` after writes and return a compact change manifest. For Promote and Project Synthesis, include the existing coverage ledger mapping reader questions and material source topics to actual answers, project-summary-only treatment, or a reasoned gap/deferral. Capture and mechanical writes do not require this ledger or synthesis review.
+4. Run `python -X utf8 ./scripts/kb.py audit` after writes and return a compact change manifest. For Promote and Project Synthesis, include the existing coverage ledger mapping reader questions and material source topics to actual answers, project-summary-only treatment, or a reasoned gap/deferral. Capture and mechanical writes do not require this ledger or synthesis review.
 5. Not spawn or delegate to another agent.
 
 Because agents share the same filesystem, the editor changes the real target files. The main agent must not recreate the same edits.

@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.1.5a). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.2.0). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 
@@ -13,7 +13,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 - **Standard Plain-Text Format**: The knowledge base consists strictly of standard Markdown files. It can be viewed and edited using standard text editors independently of AI assistants or proprietary software.
 - **Cross-Project Synthesis**: Extract technical decisions, architectural patterns, and troubleshooting notes across repositories into reusable knowledge entries.
 - **Human and Agent Usability**: Structured for human readability while maintaining explicit boundaries and schema metadata for accurate AI retrieval.
-- **Zero External Runtime Dependencies**: Built with PowerShell 7 and native static web standards. Requires no Python, Node.js, databases, or web services at runtime.
+- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases, PowerShell, or background web services. Pure Python powers the entire authoring, reading, static site generation, and backup/restore toolset.
 
 ---
 
@@ -32,14 +32,15 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
   - **`ReferenceComplete` Backup**: Archives the knowledge base alongside explicitly registered external source files with SHA-256 checksums.
   - **Plan & Confirm Workflow**: Read-only planning produces a deterministic file list and digest; execution requires confirmation with drift detection.
   - **`Portable` Restore**: Restores the bundle into a clean destination directory with integrity and structure verification.
+- **Usage Feedback (Conditional)**
+  - **Event-Driven Issue Recording**: Record locatable observations anchored to entries or operations only when concrete failures (retrieval omission, reading misuse, update omission, tooling failure) are encountered. No background daemon, automated sweeps, or ungrounded quality claims.
 
 ---
 
 ## Requirements
 
-- **Operating System**: Windows
-- **PowerShell**: PowerShell 7 or later (`pwsh`; Windows PowerShell 5.1 is not supported)
-- **Runtime Dependencies**: No Python, Node.js, database, or third-party PowerShell modules required at runtime.
+- **Platform**: Windows; Ubuntu 24.04 x86_64 has also passed native tests.
+- **Runtime**: Python 3.12+. Required Python packages are bundled with the Skill.
 
 ---
 
@@ -96,10 +97,11 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | Static HTML reading site | Supported | Responsive layout, KaTeX math, responsive TOC, code copy. |
 | Offline 2D relationship graph | Supported | Inline embedding, overlay modal, ego-focus, bilingual controls. |
 | ReferenceComplete backup & restore | Supported | SHA-256 verification, anti-drift confirmation, external sources. |
+| Usage feedback (Anchor / Trigger) | Supported | Event-triggered workflow recording; no background daemon or quality claims. |
 | Antigravity native integration | Planned | Direct adapter for Antigravity skills, rules, and workflows. |
 | ProjectSnapshot backup / Relink restore | Planned | Strategy for whole-repository external snapshots is under design. |
 | Full-text search UI & backlinks | Planned | Exploring offline, serverless client-side implementations. |
-| Cross-platform support (Linux / macOS) | Planned | Awaiting cross-platform runtime and path abstraction work. |
+| Linux runtime | Verified on Ubuntu 24.04 x86_64 | Native tests passed on ext4 with Python 3.12.3 and Node 22; other configurations and the full CI matrix remain unverified. |
 
 ---
 
@@ -116,6 +118,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 
 - [Skill Entrypoint (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [Workflows (workflows.md)](knowledge-base-manager/references/workflows.md)
+- [Usage Feedback (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
 - [Static Site & Graph (static-site.md)](knowledge-base-manager/references/static-site.md)
 - [Project Synthesis (project-synthesis.md)](knowledge-base-manager/references/project-synthesis.md)
 - [Knowledge Writing (knowledge-writing.md)](knowledge-base-manager/references/knowledge-writing.md)
@@ -131,32 +134,34 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 
 ## Development & Testing
 
+Python-based tools and structural validation use a project-local `.venv` and pinned
+[development dependencies](requirements-dev.txt). See [development setup and the
+shared Codex/Gemini commands](DEVELOPMENT.md). Python (with PyYAML and markdown-it-py) powers
+the entire CLI toolset (`kb.py`), including authoring, reading, static site generation, and backup/restore.
+
 ```text
 knowledge-base-manager/   # Distributable Skill source
-tests/                    # Automated PowerShell and Node.js test suites
+tests/                    # Automated Python and Node.js test suites
 ```
 
 All tests run against isolated temporary directories and never alter live knowledge bases:
 
-```powershell
-# 1. Root resolution and audit
-pwsh -NoProfile -File ./tests/test-kb-resolve-root.ps1
-pwsh -NoProfile -File ./tests/test-kb-audit.ps1
+```bash
+# 1. Run all test suites:
+python -X utf8 ./tests/run-all-tests.py
 
-# 2. Backup and restore lifecycle
-pwsh -NoProfile -File ./tests/test-kb-backup.ps1
+# 2. Or run individual Python suites:
+python -X utf8 ./tests/test-kb-python-parser.py
+python -X utf8 ./tests/test-kb-python-query.py
+python -X utf8 ./tests/test-kb-python-audit.py
+python -X utf8 ./tests/test-kb-python-workflow.py
+python -X utf8 ./tests/test-kb-python-backup.py
+python -X utf8 ./tests/test-kb-python-static.py
 
-# 3. Static site builder and curated navigation
-pwsh -NoProfile -File ./tests/test-kb-build-static.ps1
-pwsh -NoProfile -File ./tests/test-kb-static-navigation.ps1
-
-# 4. Graph model and interactive component
-pwsh -NoProfile -File ./tests/test-kb-static-graph.ps1
-node ./tests/test-kb-static-graph-component.cjs
-
-# 5. Table of contents and code-copy interactions
+# 3. Node.js DOM component unit tests:
 node ./tests/test-kb-static-toc.cjs
 node ./tests/test-kb-static-copy.cjs
+node ./tests/test-kb-static-graph-component.cjs
 ```
 
 > *Note: Node.js is used only for development unit testing with a simulated DOM. Installing or running the Skill does not require Node.js.*

@@ -2,13 +2,14 @@
 
 // Execute the actual inline template script, using only Node built-ins.
 // This checks DOM behavior, not browser layout or native scrolling.
-const assert = require('node:assert/strict');
+const { emitComplete, instrument } = require('./node_test_report.cjs');
+const assert = instrument(require('node:assert/strict'));
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname,
-  '../knowledge-base-manager/scripts/kb-build-static.ps1'), 'utf8');
+  '../knowledge-base-manager/scripts/kb_core/static_build.py'), 'utf8');
 const match = source.match(/<script id="kb-toc-script">([\s\S]*?)<\/script>/);
 assert.ok(match, 'The generated-page template must contain the actual TOC script');
 const script = match[1].replace(/\{\{/g, '{').replace(/\}\}/g, '}');
@@ -155,4 +156,4 @@ for (const populate of [() => ({}), ({ body, content }) => {
   assert.equal(empty.toc.children.length, 0, 'No empty list is appended');
   assert.equal(empty.body.classList.contains('kb-has-toc'), false, 'No headings must not enable TOC layout');
 }
-console.log('PASS: actual inline TOC script; levels, scope, unique anchors, safe text, native hash, details, empty pages');
+emitComplete({ suite: path.basename(__filename), assert });

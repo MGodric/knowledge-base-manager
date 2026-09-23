@@ -8,45 +8,63 @@ permissions:
   contents: read
 
 jobs:
-  powershell:
-    runs-on: windows-latest
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ['3.12', '3.14']
+
     steps:
       - uses: actions/checkout@v4
-      - name: Parse bundled scripts
-        shell: pwsh
-        run: |
-          $failed = $false
-          Get-ChildItem knowledge-base-manager/scripts/*.ps1 | ForEach-Object {
-            $tokens = $null
-            $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
-            if ($errors.Count -gt 0) {
-              $failed = $true
-              $errors | ForEach-Object { Write-Error "$($_.Extent.File): $($_.Message)" }
-            }
-          }
-          if ($failed) { exit 1 }
-      - name: Resolve-root tests
-        shell: pwsh
-        run: ./tests/test-kb-resolve-root.ps1
-      - name: Audit tests
-        shell: pwsh
-        run: ./tests/test-kb-audit.ps1
-      - name: Backup and restore tests
-        shell: pwsh
-        run: ./tests/test-kb-backup.ps1
-      - name: Static-site tests
-        shell: pwsh
-        run: ./tests/test-kb-build-static.ps1
-      - name: Static navigation tests
-        shell: pwsh
-        run: ./tests/test-kb-static-navigation.ps1
-      - uses: actions/setup-node@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Code-copy behavior tests
-        shell: pwsh
-        run: node ./tests/test-kb-static-copy.cjs
-      - name: Article-outline behavior tests
-        shell: pwsh
-        run: node ./tests/test-kb-static-toc.cjs
+
+      - name: Check vendor consistency (offline)
+        shell: bash
+        run: |
+          python -X utf8 tools/vendor_dependencies.py --check
+
+      - name: Verify vendor reproducibility and rebuild
+        shell: bash
+        run: |
+          python -X utf8 tools/vendor_dependencies.py --fetch --source-dir .local/vendor_cache
+          python -X utf8 tools/vendor_dependencies.py --rebuild --source-dir .local/vendor_cache --output .local/ci_rebuilt
+          python -X utf8 -c "import hashlib; from pathlib import Path; repo = Path('knowledge-base-manager/vendor'); rebuilt = Path('.local/ci_rebuilt'); f_repo = {str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest() for p in repo.rglob('*') if p.is_file()}; f_rebuilt = {str(p.relative_to(rebuilt)): hashlib.sha256(p.read_bytes()).hexdigest() for p in rebuilt.rglob('*') if p.is_file()}; assert f_repo == f_rebuilt, 'Rebuilt vendor differs from committed vendor!'; print('Rebuilt vendor is 100% byte-identical.')"
+
+      - name: Verify isolated standalone distribution
+        shell: bash
+        run: |
+          python -I -S -B -X utf8 knowledge-base-manager/scripts/kb.py --help
+          python -I -S -B -X utf8 knowledge-base-manager/scripts/kb.py resolve --requested ./
+
+      - name: Create virtual environment and install dependencies
+        shell: bash
+        run: |
+          python -m venv .venv
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./.venv/Scripts/python -m pip install --upgrade pip
+            ./.venv/Scripts/python -m pip install -r requirements-dev.txt
+          else
+            ./.venv/bin/python -m pip install --upgrade pip
+            ./.venv/bin/python -m pip install -r requirements-dev.txt
+          fi
+
+      - name: Run all test suites
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./.venv/Scripts/python -X utf8 tests/run-all-tests.py
+          else
+            ./.venv/bin/python -X utf8 tests/run-all-tests.py
+          fi

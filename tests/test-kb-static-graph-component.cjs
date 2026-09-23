@@ -1,6 +1,7 @@
 'use strict';
 
-const assert = require('node:assert/strict');
+const { emitComplete, instrument } = require('./node_test_report.cjs');
+const assert = instrument(require('node:assert/strict'));
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -958,4 +959,4 @@ console.log('  [PASS] English offline dictionary verified.');
 
 enGraph.destroy();
 
-console.log('\nALL GRAPH COMPONENT TESTS PASSED SUCCESSFULLY!');
+emitComplete({ suite: path.basename(__filename), assert });

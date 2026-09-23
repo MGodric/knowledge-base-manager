@@ -4,14 +4,16 @@ The audit script is read-only. It never creates, edits, moves, or deletes knowle
 
 ## Invocation and exit codes
 
-```powershell
-./scripts/kb-audit.ps1 -Root "<verified-root>"
-./scripts/kb-audit.ps1 -Root "<verified-root>" -Format Json
+```bash
+# Python CLI (supports legacy and write profiles, text and json formats):
+python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile legacy
+python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --profile write --changed <rel-path> [--changed <rel-path>...]
+python -X utf8 ./scripts/kb.py audit --root "<verified-root>" --format json
 ```
 
 - Exit `0`: no errors; warnings may still be present.
-- Exit `2`: one or more validation errors.
-- Exit `3`: the audit could not complete because of a fatal input or runtime problem.
+- Exit `2`: one or more validation errors (`status: "validation_failed"` in JSON).
+- Exit `3`: fatal input or runtime error (`status: "failed"` or `"stale"` in JSON).
 
 ## Errors
 
@@ -29,6 +31,13 @@ Errors indicate that structure, identity, or navigation is unreliable:
   instead of `$...$` or `$$...$$` (`MATH_CODE_SPAN`). Put
   `<!-- kb-literal-code -->` on the same line only when the span is genuinely
   literal code.
+
+### Collection graph errors (write profile)
+
+The `write` profile adds collection graph and parent validation across the knowledge base:
+- `COLLECTION_PARENT_MISSING`: Formal entry has no valid direct collection parent entry linking to it within an explicit `<!-- kb-nav:children -->` collection block.
+- `COLLECTION_CYCLE`: A collection cycle was detected in the collection parent-child graph.
+- Note: When a parent/owner is already invalid, secondary errors on pages it collects are suppressed.
 
 The entrypoint must have exactly one level-one heading but may omit formal metadata. Files under `inbox/` and `archive/` are retained material and are not required to satisfy the formal-entry schema.
 

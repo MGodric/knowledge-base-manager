@@ -1,0 +1,2 @@
+# Development dependencies for skill-creator validation and Python core tooling.
+-r knowledge-base-manager/requirements.txt

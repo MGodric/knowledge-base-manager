@@ -172,4 +172,4 @@ node ./tests/test-kb-static-graph-component.cjs
 
 ## License
 
-Licensed under the [MIT License](LICENSE). Offline static reading bundles [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1) browser assets; see its [third-party attribution](knowledge-base-manager/assets/katex/THIRD_PARTY.md).
+Licensed under the [MIT License](LICENSE). The Skill bundles PyYAML, markdown-it-py, mdit-py-plugins, and mdurl; their versions, upstream sources, and licenses are listed in the [Python dependency notices](knowledge-base-manager/vendor/THIRD_PARTY.md). Offline static reading also bundles [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1) browser assets; see the [KaTeX notice](knowledge-base-manager/assets/katex/THIRD_PARTY.md).

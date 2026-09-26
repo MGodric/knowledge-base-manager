@@ -2,6 +2,8 @@
 
 > Maintainer guide for the Python implementation on `main` at `b2e2a1bcec3f6bde5c0f98c07aaa7f44e6bd0eeb` (2026-09-23). The linked [`SKILL.md`](knowledge-base-manager/SKILL.md), references, and source code define behavior. Run the examples from the repository root. This document does not select or modify a real knowledge base.
 
+This is a repository-level guide, outside the distributable Skill. See the [README](README.md) for the product overview and [DEVELOPMENT.md](DEVELOPMENT.md) for local validation.
+
 ## 1. Entrypoints and responsibilities
 
 | Layer | Entrypoint | Responsibility |

@@ -2,6 +2,8 @@
 
 Python (with PyYAML and markdown-it-py) powers the entire knowledge-base management CLI toolset (`kb.py`: resolve, inspect, search, read, audit, build-static, backup, verify-backup, restore). All legacy PowerShell scripts have been completely replaced with cross-platform Python. This environment provides the shared Python environment for developing and validating both the Python core and the Skill.
 
+For repository entrypoints and module relationships, see the [maintainer architecture guide](SKILL_ARCHITECTURE.md).
+
 ## Create the environment
 
 Run from the repository root. Choose an installed, user-managed Python explicitly;

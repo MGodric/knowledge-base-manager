@@ -171,4 +171,4 @@ node ./tests/test-kb-static-graph-component.cjs
 ## 许可证 (License)
 
 本项目采用 [MIT 许可证](LICENSE)。
-内置的离线静态阅览资源包含 [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1)，遵循其原有开源许可，详见[第三方归属说明](knowledge-base-manager/assets/katex/THIRD_PARTY.md)。
+Skill 随包提供 PyYAML、markdown-it-py、mdit-py-plugins 和 mdurl；版本、上游来源与许可见 [Python 依赖归属说明](knowledge-base-manager/vendor/THIRD_PARTY.md)。离线静态阅读页另随包提供 [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1) 浏览器资源，详见 [KaTeX 归属说明](knowledge-base-manager/assets/katex/THIRD_PARTY.md)。

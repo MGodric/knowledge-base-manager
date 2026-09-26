@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Reorganized knowledge-writing guidance around reader questions, with scenario examples and display-math conventions.
+- Updated delegated-model routing for Codex and Gemini, including an opt-in Flash and Pro comparison for difficult Gemini tasks.
+- Fixed display-math extraction in nested Markdown and made static tables readable with local horizontal scrolling on narrow screens.
+- Added a repository-level architecture guide for maintainers.
+
 ## 0.2.0 - 2026-09-23
 
 - Replaced the PowerShell toolset with Python for knowledge-base queries, audits, static site generation, backup, and restore.

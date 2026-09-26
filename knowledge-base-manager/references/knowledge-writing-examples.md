@@ -1,134 +1,125 @@
-# 中文写作对照样文
+# Worked Writing Examples
 
-这些样文仅用于理解写作与验收方法，均为虚构材料。每组先给相同输入，
-再给一篇弱稿和一篇改进稿。这里只展示正文；正式条目的元数据、来源登记
-字段和导航约定仍按 [knowledge-model.md](knowledge-model.md) 执行。
-不得把样文中的虚构办理规则当成真实规定。下文用四级标题展示示例
-文章标题，复制单篇作为独立条目时才使用一个一级标题。
+These worked examples illustrate organizational structures, depth of explanation, and content acceptance criteria. All scenarios and parameters are fictional instructional materials.
 
-## 办理类：让读者排出自己的准备顺序
+This document begins with a structured navigation index to locate full reference entries by their primary reading purpose, followed by two classic side-by-side contrastive examples (Weak Draft vs. Improved Draft).
 
-### 两稿共同输入
+Formal entry metadata, provenance recording, and navigation syntax must continue to follow [knowledge-model.md](knowledge-model.md). Fictional administrative rules, algorithms, or parameters in these examples must never be treated as real regulations or production systems.
 
-虚构“栖木陶艺工坊”允许完成培训的成年登记成员预约窑炉。身份核验
-记录有效 45 个自然日；培训记录有效 120 个自然日。两份记录在申请日
-有效即可。申请必须包括拟用窑炉与日期；齐备后的下一工作日起审核一
-个完整工作日，审核结束后第二个工作日起可用。工作日按周一至周五计算，
-不考虑节假日。取消需要批准编号，费用表未提供。
+## Writing Examples Navigation Index
 
-### 弱稿：有分类和提醒，但难以据此办理
+Select reference examples based on the reader's primary objective:
 
-#### 工坊预约的材料分类与阶段边界
+| Reading Purpose / Scenario | Recommended Reference Entry | Core Acceptance & Learning Focus |
+| --- | --- | --- |
+| **Literature Interpretation (R1)** | [Academic Paper Breakdown](writing-examples/research-conjecture-and-paper.md#part-1-literature-interpretation-worked-example) | Faithfully preserves the original problem, method, and empirical boundary; strictly distinguishes author claims from the reader's critical evaluation. |
+| **Knowledge Explanation (R2)** | [Certification Exam Study Note](writing-examples/certification-and-short-cases.md#part-1-certification-study-note-worked-example)<br>[Lease & Backpressure Mechanism](writing-examples/framework-learning-and-troubleshooting.md#3-internal-mechanisms-lease-lifecycle-and-backpressure) | Anchors exam concepts to syllabus domains; analyzes why distractors fail conceptually; rejects superficial keyword memorization. |
+| **Practical Guide (R4, R5)** | [Kiln Reservation Procedure](#contrast-case-1-administrative-procedure-kiln-reservation)<br>[Task Stream Consumer Implementation](writing-examples/framework-learning-and-troubleshooting.md#2-minimal-runnable-consumer-implementation) | Organizes prerequisites and validity timelines into an actionable sequence; provides runnable code and explains key mechanisms. |
+| **Research Exploration (R3)** | [Research Conjecture Exploration](writing-examples/research-conjecture-and-paper.md#part-2-research-conjecture-monograph-worked-example)<br>[Biased Acceptance Derivation](#contrast-case-2-explanatory-research-biased-acceptance-sampling) | Formalizes open conjectures; clearly separates proven lemmas, empirical simulations, and hypotheses; openly records failed proof paths and gaps. |
+| **Problem Diagnosis & Experience (R6)** | [Consumer Troubleshooting Experience](writing-examples/framework-learning-and-troubleshooting.md#4-troubleshooting-patterns-and-diagnostic-experience)<br>[LightKV Node Triage](writing-examples/certification-and-short-cases.md#part-3-minimalist-short-entry-worked-example) | Traces the timeline of hypothesis, test, observation, and deduction; exposes the fallacy of attributing single root causes to multi-variable changes. |
+| **Comparison & Decision** | [LightKV Architecture Decision](writing-examples/project-overview-and-features.md#3-core-design-principles-and-architectural-decisions)<br>[Conflict-Driven Splitting](writing-examples/certification-and-short-cases.md#part-2-splitting-upon-reader-goal-conflict) | Evaluates trade-offs against concrete operational constraints and defines revisit triggers; avoids context-free pros/cons lists. |
+| **Project Panorama & Design (R8)** | [LightKV System Overview & Monograph](writing-examples/project-overview-and-features.md) | Three-tier depth (Overview, Monograph, Evidence); traverses the chain `User Scenario → External Behavior → Internal Flow → Design Rationale → Verification Evidence`. |
+| **Modular Composition & Short Entries (R7)** | [Multi-Purpose Task Stream Guide](writing-examples/framework-learning-and-troubleshooting.md)<br>[Short Entry & Splitting](writing-examples/certification-and-short-cases.md#part-2-splitting-upon-reader-goal-conflict) | Keeps unified reading tasks together; splits cleanly when reader goals conflict; writes concise entries without hollow placeholder sections. |
 
-设备借用需要关注身份、培训、申请和使用等不同阶段。身份材料证明
-登记情况，培训材料证明操作准备，批准记录证明预约流程的完成。
-这些材料的功能不同，不能互相替代。
+---
 
-准备时应注意各类记录的有效期。审核有一定时间要求，因此不能把
-提交申请等同于已经能够使用设备。申请人应结合自己的情况安排时间，
-并核实材料是否完整。
+## Contrast Case 1: Administrative Procedure (Kiln Reservation)
 
-取消预约属于另一条流程，应查阅对应规则。现有资料不足以证明取消
-免费，也不能推断具体费用。实际办理仍应以工坊规则为准。
+### Common Input
 
-来源：本案例“共同输入”。
+The fictional "Habitat Ceramics Studio" permits registered adult members who have completed training to reserve kiln equipment. Identity verification records are valid for 45 calendar days; training certificates are valid for 120 calendar days. Both records must be valid on the date the reservation request is submitted. The application must specify the requested kiln and intended usage dates. Once all materials are complete, staff review begins on the next business day and takes one full business day. Equipment is available starting from the second business day after review completes. Business days are Monday through Friday; this instructional calendar ignores public holidays. Cancellation requires an approval reference number; cancellation fee tables are not provided in the source material.
 
-### 改进稿：条件、材料和时间可以直接核对
+### Weak Draft: Classifications and Warnings Without Usable Process
 
-#### 工坊预约：申请材料与办理顺序
+#### Equipment Reservation Stages and Material Classifications
 
-完成培训的成年登记成员可以申请预约窑炉。准备好身份核验记录、
-培训记录、拟用窑炉和日期，再提交预约。以下时间按周一至周五为
-工作日计算，不考虑节假日。
+Equipment borrowing spans distinct identity, training, application, and utilization stages. Identity materials verify membership standing, training records confirm operational preparedness, and approval records mark the formal conclusion of the booking process. These records serve distinct functions and cannot substitute for one another.
 
-| 要准备的内容 | 提交时需要满足什么 |
-|---|---|
-| 身份核验记录 | 生成后不超过 45 个自然日 |
-| 培训通过记录 | 生成后不超过 120 个自然日 |
-| 拟使用窑炉和日期 | 与两份记录一起提交 |
+Applicants must pay strict attention to record validity windows. Because administrative review requires processing time, submitting an application must not be equated with immediate equipment access. Applicants should plan schedules according to their specific constraints and verify document completeness beforehand.
 
-两份记录在申请当天有效即可，使用当天不需要再次满足有效期要求。
-因此，可以先安排培训，等提交时间明确后再办理有效期较短的身份
-核验记录，避免预约尚未提交，记录已经过期。
+Reservation cancellation constitutes a separate administrative workflow governed by its own rules. Current materials are insufficient to confirm whether cancellation is free or incurs penalties. Actual operations must always refer to the official studio handbook.
 
-材料齐备后的下一个工作日开始审核，审核占一个完整工作日；审核结束后
-第二个工作日起才能使用。例如，周一提交齐备材料，周二审核，最早周四
-使用。如果培训记录周二才补齐，则周三审核，最早使用日也推迟到周五。安排使用日期时，应从材料齐备的那一天计算。
+*Source: Case Common Input.*
 
-取消预约需要提供批准编号。本次资料没有费用表，因此尚不能判断
-是否收费或是否存在免费取消期限；有取消计划时还需要取得这份规则。
+### Improved Draft: Clear Conditions, Prerequisites, and Actionable Sequence
 
-来源：本案例“共同输入”。
+#### Studio Kiln Reservation: Required Materials and Scheduling Order
 
-### 如何判断改善
+Registered adult members who have completed equipment safety training may submit a kiln reservation request. Assemble your identity verification record, training certificate, requested kiln identifier, and target dates before submitting. All calculations below count Monday through Friday as business days; this instructional calendar ignores public holidays.
 
-改进稿保留了有效期和审核依赖，读者能列出材料并计算两个例子。费用
-缺口只影响取消费用，不挤占已知办理内容。其价值来自可用答案，不是
-标题更口语或字数更多；仍需核对数值和计算是否与输入一致。
+| Required Material | Submission Validity Requirement |
+| --- | --- |
+| Identity Verification Record | Issued within the last 45 calendar days |
+| Training Safety Certificate | Issued within the last 120 calendar days |
+| Target Kiln ID and Usage Dates | Submitted concurrently with both records |
 
-## 研究解释类：保留推导与例子，不改成操作手册
+Both records need only be valid on the date of application submission; they do not need to remain valid on the actual equipment usage date. Therefore, complete training first, and obtain the identity verification record closer to submission, avoiding premature expiration while scheduling.
 
-### 两稿共同输入
+Administrative review commences on the business day following complete material submission and occupies one full business day. Equipment becomes available on the second business day after review completion. For example:
+- If complete materials are submitted on Monday, review takes place on Tuesday; the earliest available kiln reservation date is Thursday.
+- If a missing training record is submitted on Tuesday, review occurs on Wednesday, shifting the earliest usage date to Friday.
+Always calculate usage lead times starting from the date all materials are fully present.
 
-研究一个理想化采样模型：比特 $X$ 原本均匀分布。只保留被接受的样本。
-令 $A$ 表示接受事件，已知
-$P(A\mid X=0)=1$、$P(A\mid X=1)=1/2$。
-问题是被接受样本是否仍然均匀。这里只给定接受概率，不描述具体
-密码实现、物理故障或攻击成功率。
+Cancellations require providing the reservation approval reference number. Because cancellation fee tables were not supplied in current materials, it is currently unknown whether late cancellations incur penalties or offer full refunds; obtain the studio fee schedule before confirming a booking if your schedule is uncertain.
 
-### 弱稿：边界占据了问题本身
+*Source: Case Common Input.*
 
-#### 接受样本的认识状态与外推边界
+### Analysis of Improvement
 
-接受与未接受属于不同的数据视图。对接受样本的分析需要保留条件化
-语义，不能直接继承原始分布的性质。模型中的概率关系应在其自身
-范围内解释，不能跨层解释为实现安全结论。
+The improved draft preserves concrete validity numbers and review dependencies, enabling the reader to assemble a materials checklist and calculate turnaround dates across concrete scenarios. The fee gap is accurately isolated to cancellation policy rather than obstructing the reservation instructions. The value stems from usable answers rather than stylistic flourishes.
 
-现有结果只涉及一个二元理想模型，不覆盖真实设备、全算法或物理
-故障情况。样本偏差不能直接说明攻击成功，也不能给出一般安全保证。
-后续研究需要进一步确定模型是否适用。
+---
 
-来源：本案例“共同输入”。
+## Contrast Case 2: Explanatory Research (Biased Acceptance Sampling)
 
-### 改进稿：解释为什么筛选会改变分布
+### Common Input
 
-#### 为什么筛选后的比特不再均匀
+Consider an idealized binary sampling model where bit $X \in \{0, 1\}$ is originally uniformly distributed ($P(X=0)=1/2$, $P(X=1)=1/2$). An experiment accepts samples conditionally. Let event $A$ denote acceptance. The conditional acceptance probabilities are:
+$$P(A \mid X=0) = 1, \qquad P(A \mid X=1) = 1/2$$
+The question is whether the retained (accepted) sample sequence remains uniformly distributed. The input defines only these acceptance probabilities and does not specify underlying physical hardware, fault injection mechanisms, or cryptographic attack success rates.
 
-即使原始比特各以一半概率出现，只保留被接受的样本，也可能改变
-两者比例。本模型中，0 总被接受，1 只有一半被接受，因此留下的
-样本更偏向 0。
+### Weak Draft: Boundary Disclaimers Overwhelm the Core Question
 
-令 $A$ 表示接受。总接受概率为
+#### Epistemic Status and Extrapolation Boundaries of Accepted Samples
+
+Accepted and rejected observations represent distinct data views. Analyzing accepted samples requires rigorous adherence to conditional semantics and cannot naively inherit the statistical properties of the unconditioned distribution. Mathematical relationships within this model must be interpreted strictly within their formal assumptions and must not be conflated with physical security guarantees.
+
+Current results pertain solely to an idealized two-state mathematical model and do not account for physical device variations, full protocol suites, or environmental electromagnetic noise. Observed sample skews cannot directly prove successful side-channel exploitation, nor can they certify general algorithmic vulnerability. Subsequent investigations must verify whether this model holds in production environments.
+
+*Source: Case Common Input.*
+
+### Improved Draft: Demonstrating Why Selective Filtering Skews the Output
+
+#### Why Selective Filtering Skews Output Bit Proportions
+
+Even when original input bits appear with equal probability, conditioning on acceptance can skew the observed distribution if acceptance rates differ between values. In this model, every 0 bit is accepted, but only half of the 1 bits are accepted. As a result, the accepted stream skews toward 0.
+
+Let $A$ denote sample acceptance. By the law of total probability, the overall acceptance rate is:
 
 $$
-P(A)=P(A\mid X=0)P(X=0)+P(A\mid X=1)P(X=1)
-=1\times\frac12+\frac12\times\frac12=\frac34.
+P(A) = P(A \mid X=0)P(X=0) + P(A \mid X=1)P(X=1) = 1 \times \frac{1}{2} + \frac{1}{2} \times \frac{1}{2} = \frac{3}{4}
 $$
 
-再用条件概率计算接受样本中的比例：
+Using Bayes' theorem, the conditional probabilities of bit values among accepted samples are:
 
 $$
-P(X=0\mid A)=\frac{1\times(1/2)}{3/4}=\frac23,
-\qquad
-P(X=1\mid A)=\frac{(1/2)\times(1/2)}{3/4}=\frac13.
+P(X=0 \mid A) = \frac{P(A \mid X=0)P(X=0)}{P(A)} = \frac{1 \times (1/2)}{3/4} = \frac{2}{3}
 $$
 
-所以，原本的 $1:1$ 变成了 $2:1$。可以用 1200 个原始样本理解这个
-比例：按期望计，约 600 个为 0，全部留下；约 600 个为 1，其中约
-300 个留下。接受样本合计约 900 个，0 占其中的三分之二。这里的
-数量是期望示例，不是实际测量结果，有限样本可能波动。
+$$
+P(X=1 \mid A) = \frac{P(A \mid X=1)P(X=1)}{P(A)} = \frac{(1/2) \times (1/2)}{3/4} = \frac{1}{3}
+$$
 
-偏差来自接受概率依赖 $X$，而非原始分布不均匀。若两种值的接受
-概率相同且非零，条件化中的共同因子会约掉，接受样本仍为均匀分布。
+Thus, the original $1:1$ ratio becomes $2:1$ in favor of 0.
 
-这解释了筛选如何在这个模型中引入统计偏差。将其用于具体系统时，
-关键还在于系统的接受概率是否随所研究的变量变化；本例没有提供
-物理故障机制或攻击成功率。
+To visualize this with 1,200 initial random bits: in expectation, approximately 600 will be 0 (all 600 accepted) and 600 will be 1 (approximately 300 accepted). Of the approximately 900 accepted samples, 0 represents two-thirds. (These figures are expected values rather than empirical counts; finite sample batches will experience statistical fluctuations).
 
-来源：本案例“共同输入”。
+The statistical skew originates entirely from the dependency of $P(A \mid X)$ on $X$. If both bit values had identical non-zero acceptance probabilities, the common factor would cancel out in Bayes' formula, preserving uniform distribution.
 
-### 如何判断改善
+When applying this model to physical hardware, the critical question is whether acceptance rates genuinely correlate with sensitive internal states. This theoretical model does not establish physical fault mechanisms or exploit efficacy.
 
-改进稿回答了原问题，给出条件概率推导和可核算的例子，并说明偏差
-产生的原因。模型条件和应用限制仍然可见；它们服务于理解推导，而
-不代替推导。没有加入办理清单或强行把研究解释改成 SOP。
+*Source: Case Common Input.*
+
+### Analysis of Improvement
+
+The improved draft directly resolves the reader's question with formal conditional probability derivations and a concrete numerical sanity check, explaining *why* the distortion occurs. Scope boundaries and physical limits remain clear, but they support the mathematical derivation rather than crowding out the explanation.

@@ -7,12 +7,102 @@ import re
 from typing import Any
 
 from markdown_it import MarkdownIt
+from markdown_it.rules_block import StateBlock
 from markdown_it.rules_inline import StateInline
 from markdown_it.token import Token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.footnote import footnote_plugin
+from mdit_py_plugins.utils import is_code_block
 
 from .model import Diagnostic, LinkOccurrence, Section, SourceDeclaration
+
+
+def create_patched_math_block_dollar(
+    *,
+    allow_labels: bool = False,
+    allow_blank_lines: bool = True,
+) -> Any:
+    """Generate block dollar rule that supports paragraph interruption and validation mode."""
+
+    def _math_block_dollar(
+        state: StateBlock, startLine: int, endLine: int, silent: bool
+    ) -> bool:
+        if is_code_block(state, startLine):
+            return False
+
+        have_end_marker = False
+        start_pos = state.bMarks[startLine] + state.tShift[startLine]
+        end = state.eMarks[startLine]
+
+        if start_pos + 2 > end:
+            return False
+
+        if state.src[start_pos] != "$" or state.src[start_pos + 1] != "$":
+            return False
+
+        next_line = startLine
+
+        # search for end of block on same line
+        line_text = state.src[start_pos:end]
+        if len(line_text.strip()) > 3:
+            if line_text.strip().endswith("$$"):
+                have_end_marker = True
+                end = end - 2 - (len(line_text) - len(line_text.strip()))
+            elif allow_labels:
+                pass
+
+        # search for end of block on subsequent line
+        if not have_end_marker:
+            while True:
+                next_line += 1
+                if next_line >= endLine:
+                    break
+
+                start = state.bMarks[next_line] + state.tShift[next_line]
+                end = state.eMarks[next_line]
+                line_text = state.src[start:end]
+
+                if line_text.strip().endswith("$$"):
+                    have_end_marker = True
+                    end = end - 2 - (len(line_text) - len(line_text.strip()))
+                    break
+                if line_text.strip() == "" and not allow_blank_lines:
+                    break
+
+        if not have_end_marker:
+            return False
+
+        if silent:
+            return True
+
+        state.line = next_line + 1
+
+        token = state.push("math_block", "math", 0)
+        token.block = True
+        token.content = state.src[start_pos + 2 : end]
+        token.markup = "$$"
+        token.map = [startLine, state.line]
+
+        return True
+
+    return _math_block_dollar
+
+
+def patch_dollarmath_block_rule(
+    md: MarkdownIt,
+    *,
+    allow_labels: bool = False,
+    allow_blank_lines: bool = True,
+) -> None:
+    """Ensure math_block rule in ruler can interrupt paragraphs and handles silent mode."""
+    md.block.ruler.at(
+        "math_block",
+        create_patched_math_block_dollar(
+            allow_labels=allow_labels,
+            allow_blank_lines=allow_blank_lines,
+        ),
+        {"alt": ["paragraph", "reference", "blockquote", "list"]},
+    )
 
 
 def create_markdown_parser() -> MarkdownIt:
@@ -31,6 +121,7 @@ def create_markdown_parser() -> MarkdownIt:
             double_inline=False,
         )
     )
+    patch_dollarmath_block_rule(md, allow_labels=False, allow_blank_lines=True)
 
     orig_parse = md.helpers.parseLinkDestination
 

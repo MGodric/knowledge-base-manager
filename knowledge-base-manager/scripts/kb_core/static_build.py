@@ -21,6 +21,7 @@ from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.footnote import footnote_plugin
 from mdit_py_plugins.tasklists import tasklists_plugin
 
+from .markdown_reader import patch_dollarmath_block_rule
 from .model import Diagnostic, Envelope
 from .paths import (
     assert_no_redirecting_reparse_point,
@@ -98,6 +99,7 @@ def create_static_markdown_parser() -> MarkdownIt:
         )
         .use(tasklists_plugin)
     )
+    patch_dollarmath_block_rule(md, allow_labels=False, allow_blank_lines=True)
 
     md.validateLink = lambda url: not bool(
         re.match(r"^(javascript|vbscript):", url.strip().lower())

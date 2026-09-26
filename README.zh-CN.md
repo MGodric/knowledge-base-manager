@@ -13,7 +13,7 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
 - **标准纯文本格式**：知识库完全由标准 Markdown 文件构成，脱离 AI 助手或特定软件后，仍可直接使用通用文本编辑器查阅与编辑。
 - **跨项目知识提炼**：将分散在各个开发项目中的技术方案、排查记录与规范沉淀为可跨项目复用的知识条目。
 - **人机协同可读**：针对人类阅读与 AI 检索进行结构规范化，兼顾文章可读性与模型检索边界。
-- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库、PowerShell 或常驻服务。纯 Python 驱动全套本地写作、检索、静态站点生成与便携备份工具集。
+- **零外部数据库与后台服务依赖**：基于标准纯文本格式与离线 Web 标准构建，无需专有数据库、PowerShell 或常驻服务。代理负责撰写 Markdown；纯 Python 驱动查询、审计、静态站点与便携备份恢复命令行工具。
 
 ---
 
@@ -24,7 +24,7 @@ Knowledge Base Manager 是面向 AI 编程助手（Codex / Antigravity）设计�
   - **正式提炼（Promote）**：将草稿规范化提炼为结构完整的正式知识条目；严格基于授权源材料范围进行总结，严禁基于模型先验记忆无依据扩写细节，知识库内补充显式标注来源标签。
   - **跨项目知识综合（Project Synthesis）**：在明确指示下综合多个项目的关联知识，生成带问题导向、来源溯源与审阅记录的专题条目。
 - **结构审计**
-  - 执行 `kb-audit` 检查死链、元数据规范、路径越界、重复 ID 以及云同步冲突文件。
+  - 执行 `python knowledge-base-manager/scripts/kb.py audit --root <知识库路径>` 检查死链、元数据规范、路径越界、重复 ID 以及云同步冲突文件。
 - **静态站点与关系图谱**
   - **离线静态阅读层**：直接本地双击 HTML 文件浏览，无需启动 Web 服务器。包含自适应排版、KaTeX 公式渲染、文章目录导航、代码块复制、显式收录区嵌套列表层级展示，以及首页右上角带离线预渲染待办计数徽标的收件箱直达按钮。
   - **交互式 2D 关系图谱**：基于原生 SVG 与 CSS 实现，自动隔离草稿与归档节点。提供首页内嵌、正文全屏弹窗与独立导航页，支持层级展开/收起、节点邻域聚焦（Ego Network）与离线中英双语界面。
@@ -101,7 +101,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 | Antigravity 原生适配 | 规划中 | 适配 Antigravity 工作流与规则/Skill 标准。 |
 | ProjectSnapshot 备份 / Relink 恢复 | 规划中 | 针对大型外部项目整库快照的策略仍在设计中。 |
 | 全文搜索索引 UI 与反向链接面板 | 规划中 | 后续在保持纯离线、无后端的前提下逐步演进。 |
-| Linux 原生支持 | Ubuntu 24.04 x86_64 已验证 | ext4 / Python 3.12.3 / Node 22 原生测试通过；其他配置及完整 CI 矩阵仍待验证。 |
+| Linux 原生支持 | Ubuntu 24.04 x86_64 已验证 | ext4 / Python 3.12.3 / Node 22 原生测试通过；GitHub Actions 的 Windows 和 Ubuntu × Python 3.12 / 3.14 矩阵已通过。其他配置仍待验证。 |
 
 ---
 
@@ -116,6 +116,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 ## 详细参考文档
 
+- [入口、流程与脚本地图（Mermaid）](SKILL_ARCHITECTURE.md)
 - [Skill 主说明 (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [核心工作流指南 (workflows.md)](knowledge-base-manager/references/workflows.md)
 - [使用反馈机制 (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
@@ -136,7 +137,7 @@ https://github.com/MGodric/knowledge-base-manager/tree/main/knowledge-base-manag
 
 Python 核心工具与结构验证统一使用项目 `.venv` 与固定版本的[开发依赖](requirements-dev.txt)。
 初始化、验证命令与 Codex/Gemini 共用约定见[开发环境说明](DEVELOPMENT.md)。
-Python（搭配 PyYAML 与 markdown-it-py）驱动全套命令行工具集（`kb.py`），涵盖写作、阅读、静态站点构建与备份恢复。
+Python（搭配随包依赖）驱动全套命令行工具集（`kb.py`），涵盖定位、查询、审计、静态站点构建与备份恢复；知识正文由代理按规则直接编辑 Markdown。
 
 ```text
 knowledge-base-manager/   # 实际发布的 Skill 源码

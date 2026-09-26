@@ -628,6 +628,36 @@ updated: 2026-09-13
         self.assertEqual(parsed.link_occurrences[0].span["precision"], "line")
         self.assertFalse(parsed.link_occurrences[0].is_explicit_external_local)
 
+    def test_math_block_paragraph_interruption(self):
+        text = (
+            "说明文字\n"
+            "$$\n"
+            "f(x)=x^2\n"
+            "$$\n"
+            "这里是正文 $a=0$，继续解释 $b=1$。"
+        )
+        parsed, diags = parse_markdown_page(text)
+        self.assertEqual(len(diags), 0)
+
+        math_blocks = [t for t in parsed.tokens if t.type == "math_block"]
+        self.assertEqual(len(math_blocks), 1)
+        self.assertIn("f(x)=x^2", math_blocks[0].content)
+
+        # Inspect inline tokens to ensure Chinese text is in text nodes, not math_inline
+        inline_tokens = [t for t in parsed.tokens if t.type == "inline"]
+        self.assertEqual(len(inline_tokens), 2)  # '说明文字' and '这里是正文...'
+
+        second_inline_children = inline_tokens[1].children or []
+        math_inlines = [c for c in second_inline_children if c.type == "math_inline"]
+        self.assertEqual(len(math_inlines), 2)
+        self.assertEqual(math_inlines[0].content, "a=0")
+        self.assertEqual(math_inlines[1].content, "b=1")
+
+        text_nodes = [c for c in second_inline_children if c.type == "text"]
+        self.assertEqual(text_nodes[0].content, "这里是正文 ")
+        self.assertEqual(text_nodes[1].content, "，继续解释 ")
+        self.assertEqual(text_nodes[2].content, "。")
+
 
 if __name__ == "__main__":
     unittest.main()

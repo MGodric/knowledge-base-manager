@@ -16,7 +16,11 @@
   - Nodes exchange state via UDP Gossip. A node serves client reads only while its own master lease remains valid.
   - If a node is partitioned from Ingress Admin, its master lease expires at most 5.0 seconds from the last renewal.
   - **Client Lease Clamping Rule**: When a client requests or renews its local cache lease (default `client_lease_ttl = 2.0s`), the node clamps the granted lease duration to the remaining lifetime of its own master lease:
-    $$\text{granted\_client\_ttl} = \min(\text{client\_lease\_ttl}, \max(0, \text{master\_lease\_expires\_at} - \text{now}))$$
+
+    $$
+    \text{granted\_client\_ttl} = \min(\text{client\_lease\_ttl}, \max(0, \text{master\_lease\_expires\_at} - \text{now}))
+    $$
+
     If $\text{master\_lease\_expires\_at} \le \text{now}$, the node refuses renewals with `StaleMasterLeaseError`.
   - **Strict Bounded Staleness (Instructional Model Conditions)**:
     Within an idealized instructional model assuming shared reference clocks and negligible network transit/installation delay:

@@ -658,6 +658,34 @@ updated: 2026-09-13
         self.assertEqual(text_nodes[1].content, "，继续解释 ")
         self.assertEqual(text_nodes[2].content, "。")
 
+    def test_math_block_in_blockquote_without_gt_pollution(self):
+        text = (
+            "> Claim\n"
+            ">\n"
+            "> $$\n"
+            "> x=1\n"
+            "> $$"
+        )
+        parsed, diags = parse_markdown_page(text)
+        self.assertEqual(len(diags), 0)
+
+        math_blocks = [t for t in parsed.tokens if t.type == "math_block"]
+        self.assertEqual(len(math_blocks), 1)
+        self.assertEqual(math_blocks[0].content, "x=1")
+
+        nested_text = (
+            "> - Item:\n"
+            ">\n"
+            ">   $$\n"
+            ">   y=2\n"
+            ">   $$"
+        )
+        parsed_nested, diags_nested = parse_markdown_page(nested_text)
+        self.assertEqual(len(diags_nested), 0)
+        nested_blocks = [t for t in parsed_nested.tokens if t.type == "math_block"]
+        self.assertEqual(len(nested_blocks), 1)
+        self.assertEqual(nested_blocks[0].content, "y=2")
+
 
 if __name__ == "__main__":
     unittest.main()

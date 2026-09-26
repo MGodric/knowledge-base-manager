@@ -75,7 +75,11 @@ The improved draft preserves concrete validity numbers and review dependencies, 
 ### Common Input
 
 Consider an idealized binary sampling model where bit $X \in \{0, 1\}$ is originally uniformly distributed ($P(X=0)=1/2$, $P(X=1)=1/2$). An experiment accepts samples conditionally. Let event $A$ denote acceptance. The conditional acceptance probabilities are:
-$$P(A \mid X=0) = 1, \qquad P(A \mid X=1) = 1/2$$
+
+$$
+P(A \mid X=0) = 1, \qquad P(A \mid X=1) = 1/2
+$$
+
 The question is whether the retained (accepted) sample sequence remains uniformly distributed. The input defines only these acceptance probabilities and does not specify underlying physical hardware, fault injection mechanisms, or cryptographic attack success rates.
 
 ### Weak Draft: Boundary Disclaimers Overwhelm the Core Question

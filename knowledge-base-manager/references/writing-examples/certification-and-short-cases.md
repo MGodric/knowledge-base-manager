@@ -37,7 +37,11 @@ Consider two concurrent status updates to shipment record $K$ submitted within t
 - At real-world time $T_0 + 10\text{ms} = 1010\text{ms}$, an operator in `us-east-1` independently updates record $K$ to `"Status: Priority_Air"`. The US server clock is drifting slow by $15\text{ms}$ (well within legal $\pm 20\text{ms}$ NTP tolerance). It assigns timestamp $t_{\text{US}} = 1010 - 15 = 995\text{ms}$.
 - **Conflict Evaluation upon Asynchronous Replication**:
   When the replication stream arrives 80ms later, the conflict handler compares physical timestamps:
-  $$t_{\text{US}} (995\text{ms}) < t_{\text{EU}} (1000\text{ms})$$
+
+  $$
+  t_{\text{US}} (995\text{ms}) < t_{\text{EU}} (1000\text{ms})
+  $$
+
   Under physical wall-clock LWW, the European timestamp ($1000\text{ms}$) wins. The US update (executed 10ms later in real physical time) is silently and permanently discarded.
 
 #### 3. Sample Problem and Distractor Analysis

@@ -1319,6 +1319,50 @@ class TestStaticBuild(unittest.TestCase):
             self.assertEqual(res.returncode, 0, f"KaTeX rendering errors: {res.stderr or res.stdout}")
             self.assertIn("ALL_KATEX_RENDERED_OK", res.stdout)
 
+    def test_math_block_in_blockquote_and_nested_list_static_rendering(self) -> None:
+        """Verify that math blocks inside blockquotes and nested lists render cleanly without > or extra indentation."""
+        out_dest = os.path.join(self.test_root, "math-blockquote-output")
+        test_kb = os.path.join(self.test_root, "math-blockquote-kb")
+        setup_test_kb(test_kb, "# Home\n\n- [BQ Math Page](knowledge/bq_math.md)\n")
+
+        bq_math_body = (
+            "---\n"
+            "id: kb-20260927-bq-math\n"
+            "type: concept\n"
+            "status: stable\n"
+            "created: 2026-09-27\n"
+            "updated: 2026-09-27\n"
+            "---\n"
+            "# 引用块数学展示\n\n"
+            "> Claim\n"
+            ">\n"
+            "> $$\n"
+            "> x=1\n"
+            "> $$\n\n"
+            "> - Item:\n"
+            ">\n"
+            ">   $$\n"
+            ">   y=2\n"
+            ">   $$\n"
+        )
+        write_file(os.path.join(test_kb, "content", "knowledge", "bq_math.md"), bq_math_body)
+
+        code, env = execute_static_build(test_kb, out_dest, katex_assets_root=self.katex_assets)
+        self.assertEqual(code, 0)
+        self.assertEqual(env.status, "success")
+
+        bq_html_path = os.path.join(out_dest, "knowledge", "bq_math.html")
+        self.assertTrue(os.path.isfile(bq_html_path))
+        with open(bq_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        math_blocks = re.findall(r'<div class="math">\\\[\s*(.*?)\s*\\\]<\/div>', html, re.S)
+        self.assertEqual(len(math_blocks), 2)
+        self.assertEqual(math_blocks[0], "x=1")
+        self.assertEqual(math_blocks[1], "y=2")
+        self.assertNotIn(">", math_blocks[0])
+        self.assertNotIn(">", math_blocks[1])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,7 +79,21 @@ def create_patched_math_block_dollar(
 
         token = state.push("math_block", "math", 0)
         token.block = True
-        token.content = state.src[start_pos + 2 : end]
+        if next_line == startLine:
+            token.content = state.src[start_pos + 2 : end]
+        else:
+            first_line = state.src[start_pos + 2 : state.eMarks[startLine]].strip()
+            last_line = state.src[state.bMarks[next_line] + state.tShift[next_line] : end].strip()
+            parts: list[str] = []
+            if first_line:
+                parts.append(first_line)
+            if next_line > startLine + 1:
+                mid = state.getLines(startLine + 1, next_line, state.sCount[startLine], True)
+                if mid:
+                    parts.append(mid.rstrip("\r\n"))
+            if last_line:
+                parts.append(last_line)
+            token.content = "\n".join(parts)
         token.markup = "$$"
         token.map = [startLine, state.line]
 

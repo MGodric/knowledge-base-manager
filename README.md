@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.2.0). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.2.1). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 
@@ -13,7 +13,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
 - **Standard Plain-Text Format**: The knowledge base consists strictly of standard Markdown files. It can be viewed and edited using standard text editors independently of AI assistants or proprietary software.
 - **Cross-Project Synthesis**: Extract technical decisions, architectural patterns, and troubleshooting notes across repositories into reusable knowledge entries.
 - **Human and Agent Usability**: Structured for human readability while maintaining explicit boundaries and schema metadata for accurate AI retrieval.
-- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases, PowerShell, or background web services. Pure Python powers the entire authoring, reading, static site generation, and backup/restore toolset.
+- **Zero External Database or Service Dependencies**: Built on standard plain-text formats with no proprietary databases, PowerShell, or background web services. Agents author Markdown; pure Python powers the query, audit, static-site, and backup/restore CLI toolset.
 
 ---
 
@@ -24,7 +24,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
   - **Promote**: Refine raw drafts into structured knowledge entries grounded strictly in authorized sources, prohibiting ungrounded model extrapolations and explicitly tagging intra-knowledge-base additions.
   - **Project Synthesis**: On explicit request, synthesize related knowledge across multiple projects with question-driven outlines and verified provenance.
 - **Structure Audit**
-  - Run `kb-audit` to detect broken links, missing metadata, path containment escapes, duplicate IDs, and cloud synchronization conflict files.
+  - Run `python knowledge-base-manager/scripts/kb.py audit --root <knowledge-base-path>` to detect broken links, missing metadata, path containment escapes, duplicate IDs, and cloud synchronization conflict files.
 - **Static Site & Relationship Graph**
   - **Offline Static Reader**: Open HTML files directly in a browser without running a local web server. Includes responsive layout, offline KaTeX math rendering, table of contents navigation, code copying, curated collection hierarchy with nested lists, and a homepage Inbox header button with an offline pre-rendered count badge.
   - **Interactive 2D Relationship Graph**: Zero-dependency native SVG and CSS implementation with draft and archive isolation. Provides homepage embedding, reading-page overlay modals, and a standalone navigation page. Supports branch expanding/collapsing, 1-hop ego-network focus, and offline bilingual (EN/ZH) interface.
@@ -101,7 +101,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | Antigravity native integration | Planned | Direct adapter for Antigravity skills, rules, and workflows. |
 | ProjectSnapshot backup / Relink restore | Planned | Strategy for whole-repository external snapshots is under design. |
 | Full-text search UI & backlinks | Planned | Exploring offline, serverless client-side implementations. |
-| Linux runtime | Verified on Ubuntu 24.04 x86_64 | Native tests passed on ext4 with Python 3.12.3 and Node 22; other configurations and the full CI matrix remain unverified. |
+| Linux runtime | Verified on Ubuntu 24.04 x86_64 | Native tests passed on ext4 with Python 3.12.3 and Node 22; GitHub Actions passed on Windows and Ubuntu with Python 3.12 and 3.14. Other configurations remain unverified. |
 
 ---
 
@@ -116,6 +116,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 
 ## Documentation
 
+- [Entrypoints, workflows, and scripts (Mermaid)](SKILL_ARCHITECTURE.md)
 - [Skill Entrypoint (SKILL.md)](knowledge-base-manager/SKILL.md)
 - [Workflows (workflows.md)](knowledge-base-manager/references/workflows.md)
 - [Usage Feedback (usage-feedback.md)](knowledge-base-manager/references/usage-feedback.md)
@@ -136,8 +137,9 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 
 Python-based tools and structural validation use a project-local `.venv` and pinned
 [development dependencies](requirements-dev.txt). See [development setup and the
-shared Codex/Gemini commands](DEVELOPMENT.md). Python (with PyYAML and markdown-it-py) powers
-the entire CLI toolset (`kb.py`), including authoring, reading, static site generation, and backup/restore.
+shared Codex/Gemini commands](DEVELOPMENT.md). Python with bundled dependencies powers
+the `kb.py` CLI for root resolution, queries, audit, static-site generation, and backup/restore.
+Agents edit knowledge Markdown according to the Skill workflows.
 
 ```text
 knowledge-base-manager/   # Distributable Skill source
@@ -170,4 +172,4 @@ node ./tests/test-kb-static-graph-component.cjs
 
 ## License
 
-Licensed under the [MIT License](LICENSE). Offline static reading bundles [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1) browser assets; see its [third-party attribution](knowledge-base-manager/assets/katex/THIRD_PARTY.md).
+Licensed under the [MIT License](LICENSE). The Skill bundles PyYAML, markdown-it-py, mdit-py-plugins, and mdurl; their versions, upstream sources, and licenses are listed in the [Python dependency notices](knowledge-base-manager/vendor/THIRD_PARTY.md). Offline static reading also bundles [KaTeX 0.18.1](https://github.com/KaTeX/KaTeX/releases/tag/v0.18.1) browser assets; see the [KaTeX notice](knowledge-base-manager/assets/katex/THIRD_PARTY.md).

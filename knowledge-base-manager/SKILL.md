@@ -48,6 +48,8 @@ The primary agent may resolve paths, identify a minimal source-file list, settle
 
 If spawning is unavailable or fails, stop before reading sources in detail or writing. Explain the loss of isolation and obtain the user's explicit approval before falling back to a main-session write. Never silently perform the work in the primary agent.
 
+For Gemini sessions that delegate a difficult read-only knowledge task, also read the [Gemini model route](references/delegation.md#gemini-model-route). Keep the selected exact model by default and ask before parallel Flash and Pro analysis. Read-only work has no designated editor or write authorization.
+
 ## Select a mode
 
 - **Initialize** when setting up a new knowledge base or adopting an existing directory. Read [references/initialization.md](references/initialization.md) and [references/safety.md](references/safety.md).

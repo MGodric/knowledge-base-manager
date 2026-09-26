@@ -21,6 +21,7 @@ from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.footnote import footnote_plugin
 from mdit_py_plugins.tasklists import tasklists_plugin
 
+from .markdown_reader import patch_dollarmath_block_rule
 from .model import Diagnostic, Envelope
 from .paths import (
     assert_no_redirecting_reparse_point,
@@ -39,7 +40,7 @@ from .static_nav import get_static_navigation_href, get_static_navigation_model
 from .yaml_reader import read_yaml_fields
 
 GENERATOR_VERSION = "1.2.0"
-TEMPLATE_VERSION = "9"
+TEMPLATE_VERSION = "10"
 MANIFEST_NAME = ".kb-static-manifest.json"
 KATEX_ASSET_VERSION = "0.18.1"
 GRAPH_ASSET_VERSION = "1.0.0"
@@ -98,6 +99,7 @@ def create_static_markdown_parser() -> MarkdownIt:
         )
         .use(tasklists_plugin)
     )
+    patch_dollarmath_block_rule(md, allow_labels=False, allow_blank_lines=True)
 
     md.validateLink = lambda url: not bool(
         re.match(r"^(javascript|vbscript):", url.strip().lower())
@@ -130,6 +132,21 @@ def create_static_markdown_parser() -> MarkdownIt:
 
     md.add_render_rule("th_open", render_th_open)
     md.add_render_rule("td_open", render_td_open)
+
+    # Wrap tables in responsive scroll container
+    orig_table_open = md.renderer.rules.get("table_open")
+    orig_table_close = md.renderer.rules.get("table_close")
+
+    def render_table_open(self, tokens, idx, options, env):
+        base = orig_table_open(self, tokens, idx, options, env) if orig_table_open else self.renderToken(tokens, idx, options, env)
+        return f'<div class="kb-table-wrap">{base}'
+
+    def render_table_close(self, tokens, idx, options, env):
+        base = orig_table_close(self, tokens, idx, options, env) if orig_table_close else self.renderToken(tokens, idx, options, env)
+        return f'{base}</div>'
+
+    md.add_render_rule("table_open", render_table_open)
+    md.add_render_rule("table_close", render_table_close)
 
     # <del> for strikethrough
     md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")
@@ -490,7 +507,7 @@ h1,h2,h3,h4,h5,h6{{line-height:1.45;color:#1d4c71;scroll-margin-top:2rem}} h1{{f
 h2{{margin:2.25rem 0 1rem;padding-bottom:.6rem;border-bottom:1px solid #dce7f0;font-size:1.3rem}} h3{{font-size:1.08rem;margin:1.6rem 0 .6rem}} p{{margin:.9rem 0}}
 pre{{overflow:auto;max-width:100%;margin:1.25rem 0;padding:1.25rem 1.4rem;background:#f1f6fb;border:1px solid #d6e5f1;border-radius:8px;line-height:1.7;tab-size:4;color:#274963}} pre code{{padding:0;background:transparent;border:0;font-size:1em;overflow-wrap:normal}}
 code,pre{{font-family:Consolas,"Cascadia Code","SFMono-Regular",monospace;font-size:.88em}} :not(pre)>code{{background:#edf4fa;padding:.15em .4em;border:1px solid #e0eaf3;border-radius:4px;color:#1c5c8d}}
-table{{display:block;max-width:100%;width:max-content;overflow-x:auto;border-collapse:collapse;margin:1.25rem 0;font-size:.9rem}} th,td{{border:1px solid #dce7f0;padding:.7rem .9rem;text-align:left;vertical-align:top}} th{{background:#edf5fc;color:#2a5b80;font-weight:650}} tr:nth-child(even) td{{background:#f9fbfd}} caption{{text-align:left;color:#60758a;padding:.5rem 0}}
+.kb-table-wrap{{overflow-x:auto;max-width:100%;margin:1.25rem 0;-webkit-overflow-scrolling:touch}} .kb-table-wrap>table{{margin:0}} table{{border-collapse:collapse;margin:1.25rem 0;font-size:.9rem;min-width:100%;width:auto}} th,td{{border:1px solid #dce7f0;padding:.7rem .9rem;text-align:left;vertical-align:top;overflow-wrap:break-word;word-break:normal}} th{{background:#edf5fc;color:#2a5b80;font-weight:650;white-space:nowrap}} tr:nth-child(even) td{{background:#f9fbfd}} caption{{text-align:left;color:#60758a;padding:.5rem 0}}
 ul,ol{{padding-left:1.6rem}} li+li{{margin-top:.3rem}} li>ul,li>ol{{margin:.2rem 0 .1rem}} li::marker{{color:#4388bb}}
 ul.task-list,ul.contains-task-list{{list-style:none;padding-left:.25rem}} .task-list-item{{display:flex;align-items:baseline;gap:.45rem}} .task-list-item>input[type="checkbox"]{{margin:0;flex:0 0 auto}}
 blockquote{{margin:1.4rem 0;padding:.15rem 1.25rem;border-left:.2rem solid #65a9dc;background:#f3f8fd;color:#466278;border-radius:0 7px 7px 0}} blockquote>:first-child{{margin-top:.55rem}} blockquote>:last-child{{margin-bottom:.55rem}}
@@ -517,7 +534,7 @@ details{{margin:1.4rem 0;padding:.75rem 1.1rem;border:1px solid #dce7f0;border-r
 @media (min-width:1100px){{body.kb-has-toc{{max-width:1320px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:2rem;align-items:start}} .kb-toc{{position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto;padding:.75rem .25rem}}}}
 @media (max-width:1099px){{body.kb-has-toc{{display:flex;flex-direction:column}} .kb-toc{{order:-1;width:100%;margin:0 0 1rem;padding:1rem;background:#f3f8fd;border:1px solid #d6e3ee;border-radius:8px}} .kb-paper{{width:100%}}}}
 @media (max-width:600px){{body{{margin:1rem auto;padding:0 .75rem}} .kb-paper{{padding:1.25rem 1.1rem 1.5rem;border-radius:10px}} .kb-content>h1:first-child{{padding:1rem}} pre{{padding:.9rem}} th,td{{padding:.5rem .65rem}}}}
-@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc,.kb-graph-trigger-btn,.kb-inbox-trigger-btn,.kb-graph-inline-section,.kb-graph-root{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
+@media print{{:root{{font-size:11pt;background:#fff;color:#000}} body,body.kb-has-toc{{display:block;max-width:none;margin:0;padding:0;background:#fff;color:#000}} .kb-paper{{padding:0;border:0;border-radius:0;box-shadow:none}} .kb-code-tools,.kb-toc,.kb-graph-trigger-btn,.kb-inbox-trigger-btn,.kb-graph-inline-section,.kb-graph-root{{display:none}} .kb-content>h1:first-child{{padding:0;border:0;background:#fff}} h1,h2,h3{{break-after:avoid}} pre{{white-space:pre-wrap;overflow-wrap:anywhere}} pre code{{overflow-wrap:anywhere}} .kb-table-wrap{{overflow:visible;max-width:none}} table{{display:table;width:100%;overflow:visible}} tr,blockquote{{break-inside:avoid}} a{{color:inherit}}}}
 </style>
 <link rel="stylesheet" href="{katex_prefix}/katex.min.css">
 <script defer src="{katex_prefix}/katex.min.js"></script>

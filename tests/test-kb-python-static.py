@@ -794,7 +794,7 @@ class TestStaticBuild(unittest.TestCase):
 
         self.assertEqual(manifest["schema"], "knowledge-base-static-site")
         self.assertEqual(manifest["schema_version"], 1)
-        self.assertEqual(manifest["template_version"], "9")
+        self.assertEqual(manifest["template_version"], "10")
         self.assertEqual(manifest["entry_output_path"], "index.html")
         self.assertEqual(len(manifest["pages"]), 2)
         self.assertEqual(manifest["katex"]["asset_version"], "0.18.1")
@@ -834,7 +834,8 @@ class TestStaticBuild(unittest.TestCase):
         content_block = re.search(r"(?s)<div class=\"kb-content\">.*?</div>", entry_html).group(0)
         self.assertNotIn("kb-20260831-entry", content_block)
         self.assertIn('href="../index.html"', entry_html)
-        self.assertTrue(re.search(r'(?is)<table.*?<thead>.*?<th[^>]*style="text-align: left;"[^>]*>项目</th>.*?<th[^>]*style="text-align: right;"[^>]*>状态</th>.*?<tbody>.*?</table>', entry_html))
+        self.assertTrue(re.search(r'(?is)<div class="kb-table-wrap">\s*<table', entry_html))
+        self.assertTrue(re.search(r'(?is)<table.*?<thead>.*?<th[^>]*style="text-align: left;"[^>]*>项目</th>.*?<th[^>]*style="text-align: right;"[^>]*>状态</th>.*?<tbody>.*?</table>\s*</div>', entry_html))
         self.assertTrue(re.search(r'(?is)<table.*?href="\.\./index\.html".*?</table>', entry_html))
         self.assertIsNone(re.search(r'(?is)<table.*?\.md.*?</table>', entry_html))
         self.assertTrue(re.search(r'(?is)<ul class="contains-task-list">.*?<input[^>]*disabled="disabled"[^>]*type="checkbox".*?</ul>', entry_html))
@@ -848,7 +849,7 @@ class TestStaticBuild(unittest.TestCase):
 
         # CSS tokens in static template
         for css_token in (
-            "table{display:block", "th,td{border:", "ul.contains-task-list",
+            ".kb-table-wrap{overflow-x:auto", "table{border-collapse:collapse", "th,td{border:", "ul.contains-task-list",
             ".task-list-item", "blockquote{", ".markdown-alert{",
             ".markdown-alert-title{", ".footnotes{", "hr{", "del{", "pre{", "img{max-width:100%"
         ):
@@ -1165,6 +1166,260 @@ class TestStaticBuild(unittest.TestCase):
             self.assertEqual(len(delims), 2)
             self.assertEqual(delims[0], {"left": r"\(", "right": r"\)", "display": False})
             self.assertEqual(delims[1], {"left": r"\[", "right": r"\]", "display": True})
+
+    def test_math_block_paragraph_interruption_and_rendering(self) -> None:
+        """Verify that math blocks correctly interrupt paragraphs without leading blank lines,
+        preserve Chinese prose outside math delimiters, and render via bundled KaTeX assets."""
+        out_dest = os.path.join(self.test_root, "math-interruption-output")
+        test_kb = os.path.join(self.test_root, "math-interruption-kb")
+        setup_test_kb(test_kb, "# Home\n\n- [Math Page](knowledge/math.md)\n")
+
+        math_body = (
+            "---\n"
+            "id: kb-20260926-math\n"
+            "type: concept\n"
+            "status: stable\n"
+            "created: 2026-09-26\n"
+            "updated: 2026-09-26\n"
+            "---\n"
+            "# 数学展示测试\n\n"
+            "## 最小复现样例\n\n"
+            "说明文字\n"
+            "$$\n"
+            "f(x)=x^2\n"
+            "$$\n"
+            "这里是正文 $a=0$，继续解释 $b=1$。\n\n"
+            "## 空行组合对照\n\n"
+            "全无空行前文\n"
+            "$$\n"
+            "g(x)=x^3\n"
+            "$$\n"
+            "全无空行后文 $c=0$\n\n"
+            "前有空行后无空行\n\n"
+            "$$\n"
+            "h(x)=x^4\n"
+            "$$\n"
+            "后无空行后文 $d=0$\n\n"
+            "## 连续公式块\n\n"
+            "$$\n"
+            "A = \\alpha + 1\n"
+            "$$\n"
+            "$$\n"
+            "B = \\beta + 2\n"
+            "$$\n\n"
+            "## 对齐环境与合法中文\n\n"
+            "$$\n"
+            "\\begin{aligned}\n"
+            "\\Delta C &= x \\\\\n"
+            "\\Delta A &= y\n"
+            "\\end{aligned}\n"
+            "$$\n\n"
+            "$$\n"
+            "\\Pr(S\\text{ 闭合})=\\binom Ns^{-s}\n"
+            "$$\n\n"
+            "## 表格行内数学与转义与代码隔离\n\n"
+            "| 符号 | 含义 |\n"
+            "| :--- | :--- |\n"
+            "| $x$ | 输入变量 |\n"
+            "| $y$ | 输出变量 |\n\n"
+            "代码与货币隔离：\\$100 不是数学，`$$` 和 `$foo$` 也不是公式。\n\n"
+            "```python\n"
+            "$$\n"
+            "x = 100\n"
+            "$$\n"
+            "```\n"
+        )
+        write_file(os.path.join(test_kb, "content", "knowledge", "math.md"), math_body)
+
+        code, env = execute_static_build(test_kb, out_dest, katex_assets_root=self.katex_assets)
+        self.assertEqual(code, 0)
+        self.assertEqual(env.status, "success")
+
+        math_html_path = os.path.join(out_dest, "knowledge", "math.html")
+        self.assertTrue(os.path.isfile(math_html_path))
+        with open(math_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        # 1. Minimal fixture assertions
+        self.assertIn("<p>说明文字</p>", html)
+        self.assertTrue(re.search(r'<div class="math">\\\[\s*f\(x\)=x\^2\s*\\\]<\/div>', html))
+        self.assertTrue(
+            re.search(
+                r'<p>这里是正文 <span class="math">\\\(a=0\\\)</span>，继续解释 <span class="math">\\\(b=1\\\)</span>。<\/p>',
+                html,
+            )
+        )
+
+        # 2. Blank line variations
+        self.assertIn("<p>全无空行前文</p>", html)
+        self.assertTrue(re.search(r'<div class="math">\\\[\s*g\(x\)=x\^3\s*\\\]<\/div>', html))
+        self.assertIn("全无空行后文", html)
+        self.assertTrue(re.search(r'<div class="math">\\\[\s*h\(x\)=x\^4\s*\\\]<\/div>', html))
+        self.assertIn("后无空行后文", html)
+
+        # 3. Consecutive blocks
+        self.assertTrue(re.search(r'<div class="math">\\\[\s*A = \\alpha \+ 1\s*\\\]<\/div>', html))
+        self.assertTrue(re.search(r'<div class="math">\\\[\s*B = \\beta \+ 2\s*\\\]<\/div>', html))
+
+        # 4. Aligned environment
+        self.assertIn("\\begin{aligned}", html)
+        self.assertIn("\\end{aligned}", html)
+
+        # 5. Legitimate Chinese inside \text{}
+        self.assertIn(r"\Pr(S\text{ 闭合})=\binom Ns^{-s}", html)
+
+        # 6. Table with inline math
+        self.assertTrue(re.search(r'<td[^>]*><span class="math">\\\(x\\\)</span></td>', html))
+        self.assertTrue(re.search(r'<td[^>]*><span class="math">\\\(y\\\)</span></td>', html))
+
+        # 7. Code isolation & escaped dollar
+        self.assertIn("$100 不是数学", html)
+        self.assertIn("<code>$$</code>", html)
+        self.assertIn("<code>$foo$</code>", html)
+        self.assertIn('<code class="language-python">$$\nx = 100\n$$\n</code>', html)
+
+        # 8. Verify no unintended CJK leaked into math regions
+        math_block_matches = re.findall(r'<div class="math">\\\[\s*(.*?)\s*\\\]<\/div>', html, re.S)
+        math_inline_matches = re.findall(r'<span class="math">\\\((.*?)\\\)<\/span>', html, re.S)
+        cjk_char_re = re.compile(r"[\u4e00-\u9fff]")
+
+        # In math blocks, only the legitimate \text{ 闭合} should have CJK
+        for mb in math_block_matches:
+            cjk_found = cjk_char_re.findall(mb)
+            if cjk_found:
+                self.assertIn(r"\text{ 闭合}", mb)
+
+        # In math inlines, zero CJK characters should exist
+        for mi in math_inline_matches:
+            cjk_found = cjk_char_re.findall(mi)
+            self.assertEqual(len(cjk_found), 0, f"Unexpected CJK in math_inline: {mi}")
+
+        # 9. Offline KaTeX rendering with real bundled assets
+        node_exe = shutil.which("node")
+        real_katex_path = os.path.join(PROJECT_ROOT, "knowledge-base-manager", "assets", "katex", "katex.min.js")
+        if node_exe and os.path.isfile(real_katex_path):
+            all_math_snippets = math_block_matches + math_inline_matches
+            js_script = (
+                f"const katex = require({json.dumps(real_katex_path)});\n"
+                f"const snippets = {json.dumps(all_math_snippets)};\n"
+                "let errors = [];\n"
+                "for (const s of snippets) {\n"
+                "  try {\n"
+                "    katex.renderToString(s, { displayMode: true, throwOnError: true });\n"
+                "  } catch (err) {\n"
+                "    errors.push({ snippet: s, error: err.message });\n"
+                "  }\n"
+                "}\n"
+                "if (errors.length > 0) {\n"
+                "  console.error(JSON.stringify(errors));\n"
+                "  process.exit(1);\n"
+                "}\n"
+                "console.log('ALL_KATEX_RENDERED_OK');\n"
+            )
+            res = subprocess.run([node_exe], input=js_script, capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"KaTeX rendering errors: {res.stderr or res.stdout}")
+            self.assertIn("ALL_KATEX_RENDERED_OK", res.stdout)
+
+    def test_math_block_in_blockquote_and_nested_list_static_rendering(self) -> None:
+        """Verify that math blocks inside blockquotes and nested lists render cleanly without > or extra indentation."""
+        out_dest = os.path.join(self.test_root, "math-blockquote-output")
+        test_kb = os.path.join(self.test_root, "math-blockquote-kb")
+        setup_test_kb(test_kb, "# Home\n\n- [BQ Math Page](knowledge/bq_math.md)\n")
+
+        bq_math_body = (
+            "---\n"
+            "id: kb-20260927-bq-math\n"
+            "type: concept\n"
+            "status: stable\n"
+            "created: 2026-09-27\n"
+            "updated: 2026-09-27\n"
+            "---\n"
+            "# 引用块数学展示\n\n"
+            "> Claim\n"
+            ">\n"
+            "> $$\n"
+            "> x=1\n"
+            "> $$\n\n"
+            "> - Item:\n"
+            ">\n"
+            ">   $$\n"
+            ">   y=2\n"
+            ">   $$\n"
+        )
+        write_file(os.path.join(test_kb, "content", "knowledge", "bq_math.md"), bq_math_body)
+
+        code, env = execute_static_build(test_kb, out_dest, katex_assets_root=self.katex_assets)
+        self.assertEqual(code, 0)
+        self.assertEqual(env.status, "success")
+
+        bq_html_path = os.path.join(out_dest, "knowledge", "bq_math.html")
+        self.assertTrue(os.path.isfile(bq_html_path))
+        with open(bq_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        math_blocks = re.findall(r'<div class="math">\\\[\s*(.*?)\s*\\\]<\/div>', html, re.S)
+        self.assertEqual(len(math_blocks), 2)
+        self.assertEqual(math_blocks[0], "x=1")
+        self.assertEqual(math_blocks[1], "y=2")
+        self.assertNotIn(">", math_blocks[0])
+        self.assertNotIn(">", math_blocks[1])
+
+    def test_table_narrow_screen_wrapper_and_styles(self) -> None:
+        """Verify that markdown tables are wrapped in .kb-table-wrap and template provides responsive table CSS."""
+        out_dest = os.path.join(self.test_root, "table-resp-output")
+        test_kb = os.path.join(self.test_root, "table-resp-kb")
+        setup_test_kb(test_kb, "# Home\n\n- [Table Page](knowledge/table_page.md)\n")
+
+        table_body = (
+            "---\n"
+            "id: kb-20260927-table-resp\n"
+            "type: concept\n"
+            "status: stable\n"
+            "created: 2026-09-27\n"
+            "updated: 2026-09-27\n"
+            "---\n"
+            "# 响应式表格测试\n\n"
+            "## 五列样本与控制\n\n"
+            "| 检查轮数 | 轮变换结构约定 | 结合缺陷 $\\Delta A$ 检验表现 | 交换缺陷 $\\Delta C$ 检验表现 | 结构机制与状态 |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            "| 0 | 初始 ARK | 恒为 0（线性 XOR） | 恒为 0（线性 XOR） | 纯异或代数退化 |\n"
+            "| 1 | ARK + SB + SR + MC + ARK | 显著异常（Hamming 方差 $\\approx 46$） | 显著异常（仅含 $K_1(x)\\oplus K_1(y)$） | 交换缺陷直接反映 key schedule 局部扩散 |\n"
+            "| 3–9 | 逐轮 standard ordinary 轮 | 当前投影通过筛查 | 当前投影通过筛查 | 低阶统计量与 $\\operatorname{Binomial}(128,1/2)$ 一致 |\n\n"
+            "> 引用块中的表格：\n"
+            ">\n"
+            "> | 参数 | 意义 |\n"
+            "> | --- | --- |\n"
+            "> | $N$ | 状态空间 $2^{128}$ |\n"
+        )
+        write_file(os.path.join(test_kb, "content", "knowledge", "table_page.md"), table_body)
+
+        code, env = execute_static_build(test_kb, out_dest, katex_assets_root=self.katex_assets)
+        self.assertEqual(code, 0)
+        self.assertEqual(env.status, "success")
+
+        html_path = os.path.join(out_dest, "knowledge", "table_page.html")
+        self.assertTrue(os.path.isfile(html_path))
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        # Both tables wrapped in .kb-table-wrap
+        wrappers = re.findall(r'<div class="kb-table-wrap">\s*<table>', html)
+        self.assertEqual(len(wrappers), 2)
+        closes = re.findall(r'</table>\s*</div>', html)
+        self.assertEqual(len(closes), 2)
+
+        # Template CSS assertions for responsive tables
+        self.assertIn(".kb-table-wrap{overflow-x:auto;max-width:100%", html)
+        self.assertIn(".kb-table-wrap>table{margin:0}", html)
+        self.assertIn("table{border-collapse:collapse;margin:1.25rem 0;font-size:.9rem;min-width:100%;width:auto}", html)
+        self.assertIn("overflow-wrap:break-word;word-break:normal", html)
+        self.assertIn("white-space:nowrap", html)
+        self.assertIn(".kb-table-wrap{overflow:visible;max-width:none}", html)
+
+        # Content preservation
+        self.assertIn("ARK + SB + SR + MC + ARK", html)
+        self.assertIn("逐轮 standard ordinary 轮", html)
+        self.assertIn("状态空间", html)
 
 
 if __name__ == "__main__":

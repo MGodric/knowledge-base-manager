@@ -81,12 +81,32 @@ start with a useful answer or explanation, develop the relevant details, and
 include supporting sources. Conditions can sit beside the claim or procedure
 that they qualify rather than occupying a mandatory limitations section.
 
-The metadata type describes the entry's role, not a required heading set:
+The metadata type describes the entry's role, not its maturity, lifecycle, or required headings. Reading purposes do not map one-to-one to types:
 
+- `concept`: reusable theoretical mechanisms, mental models, explanations, or foundational knowledge.
+- `method`: operational procedures, implementation walkthroughs, diagnostic guides, or repeatable techniques.
 - `source`: bibliographic identity, source summary, evidence, and reusable conclusions.
 - `decision`: context, decision, alternatives, rationale, consequences, and review trigger.
-- `project`: scope, external location hints, and knowledge outputs.
+- `project`: overall system positioning, architecture, baseline status, and pointers to knowledge outputs.
 - `map`: curated groups of links with explanatory context, not copied entry bodies.
+
+Writing starting points (reading purposes such as literature review, knowledge explanation, practical guide, research exploration, troubleshooting, decision trade-offs, and project panorama) are independent of `type`. For instance, a troubleshooting note can be a `concept` if focusing on failure mechanisms, or a `method` if focusing on procedural diagnosis; a project deep-dive monograph can be a `concept` or `method` linked within the project's collection, without forcing every project document into `project` or inventing new metadata types.
+
+Choose by what the entry contributes, as these examples illustrate:
+
+| Main contribution | Existing type |
+| --- | --- |
+| A faithful interpretation of one paper or lecture | `source` |
+| An explanation of a mechanism across sources | `concept` |
+| A repeatable diagnostic or operational procedure | `method` |
+| A choice, its alternatives, and its consequences | `decision` |
+| A project's scope, current baseline, and knowledge outputs | `project` |
+| Curated navigation among related entries | `map` |
+
+These are examples, not automatic classification rules. A project's feature
+page may explain a mechanism, teach a procedure, or record a decision. Keep the
+existing layout and link authorization rules below; a writing pattern does not
+authorize a new map, extra navigation relationships, or migration of old entries.
 
 For presentation choices use [markdown-format.md](markdown-format.md). For
 explanation depth, examples, and acceptance use the writing reference; neither

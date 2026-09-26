@@ -30,6 +30,22 @@ the information being preserved rather than forcing a template.
 - Use fenced code for executable examples and inline code for literal commands,
   identifiers, paths, labels, and strings.
 
+### Inline code badges and plain prose
+
+Inline code (` `...` `) renders with badge styling in the static reader (light background, border, monospace font). Use it intentionally to provide visual scanning anchors for concrete artifacts without cluttering prose with typographical noise:
+
+- **Use inline code for:**
+  1. *Epistemic and status labels*: Evidence markers like `（`PROVED`）`, `（`EXHAUSTIVE`）`, `（`EXPERIMENTAL`）`, `（`HEURISTIC`）`, `（`LITERATURE`）`, and workflow states like `PASS`, `FIX`, `BLOCKED`, `draft`, `stable`.
+  2. *Literal paths, files, and code identifiers*: e.g., `~/.claude/CLAUDE.md`, `src/aesop/models.py`, `settings.json`, `f_x(k)`.
+  3. *Commands, flags, literals, and hex witness strings*: e.g., `git status`, `--profile write`, `60ded0d98010de933785157a00287122`.
+  4. *Configuration keys and exact UI labels*: e.g., `OPENAI_API_KEY`, `Auto Select`, `Multi-Monitor Sync (MMS)`.
+
+- **Avoid inline code (keep as plain text, math, or bold emphasis) for:**
+  1. *Mathematical symbols and variables*: Use `$x$`, `$E_K(P)$`, `$\mathrm{GF}(2^8)$`, never `` `x` `` or `` `E_K(P)` ``.
+  2. *Conceptual terminology and domain nouns*: Use ordinary prose or `**bold**` (e.g., bijection, permutation, side-channel attack), not `` `bijection` ``.
+  3. *General technical acronyms in prose flow*: Use ordinary text (e.g., "running AES on CPU and GPU"), not `` `AES` `` or `` `CPU` ``.
+  4. *Long descriptive phrases*: Keep inline code to short tokens (1–3 words); do not wrap full clauses in backticks.
+
 Do not manufacture empty tables, checklist rows, or headings merely to look
 structured. Keep explanatory prose beside a table or list whenever its meaning
 would otherwise be unclear.
@@ -77,7 +93,13 @@ interactive forms are not supported canonical features.
 Write mathematical notation as KaTeX-compatible TeX:
 
 - inline mathematics uses `$...$`;
-- display mathematics uses `$$...$$` on separate lines;
+- display mathematics uses `$$...$$` with opening and closing delimiters each on their own standalone lines, surrounded by blank lines:
+  - preceding introductory prose, followed by a blank line;
+  - opening `$$` on its own line;
+  - formula content (or multi-line environment such as `\begin{aligned}...\end{aligned}`);
+  - closing `$$` on its own line;
+  - a blank line, followed by the continuing explanation.
+- keep ordinary prose and explanatory sentences outside math delimiters; never wrap full sentences or paragraphs in `\text{...}` to force prose into math regions. Reserve `\text{...}` for concise words or labels that are genuinely part of the mathematical formula (such as `\Pr(S\text{ 闭合})`).
 - use TeX commands for Greek letters, operators, relations, and text inside a
   formula instead of spelling mathematical symbols as programming identifiers.
 
@@ -87,11 +109,24 @@ Examples:
 Process data $x$ with tag $\tau_x = \alpha x$.
 
 Inversion is performed locally in $\mathrm{GF}(2^8)$, while the zero case is
-handled by $\delta(x)$.
+handled by $\delta(x)$:
 
 $$
 P(X=x \mid \mathrm{accepted})
 $$
+
+Here the probability represents the normalized acceptance over all inputs.
+
+Multi-step derivation with aligned equations:
+
+$$
+\begin{aligned}
+\Delta C &= C_1 \oplus C_2 \\
+\Delta A &= A_1 \oplus A_2
+\end{aligned}
+$$
+
+The derivation establishes the difference propagation boundary.
 ```
 
 Do not write those expressions as `` `tau_x = alpha*x` ``, `` `GF(2^8)` ``,

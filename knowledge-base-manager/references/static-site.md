@@ -34,14 +34,16 @@ must follow [the Markdown content format](markdown-format.md):
 ```markdown
 Inline: $P(X=x \mid accepted)$
 
-Display:
+Display with blank-line contract:
 
 $$
 R_K = ARK_{K_1} \circ SR \circ SB \circ ARK_{K_0}
 $$
+
+The formula above defines round transformation.
 ```
 
-The Markdown renderer converts these forms to math-marked HTML, then the locally bundled KaTeX auto-render script typesets them in the browser. Backtick code spans and fenced code blocks remain code and are intentionally not treated as formulas. Do not mechanically convert every code span to math.
+The Markdown renderer converts these forms to math-marked HTML, correctly recognizing display math blocks on standalone lines (supporting paragraph interruption even if a preceding blank line was omitted) and preserving explanatory text in standard HTML paragraphs. The locally bundled KaTeX 0.18.1 distribution typesets formulas client-side in the browser. Backtick code spans and fenced code blocks remain code and are intentionally not treated as formulas. Do not mechanically convert every code span to math.
 
 The source knowledge base is read-only. Do not place the destination at, above, or below the knowledge-base root. Reject junctions and symbolic links in either data path. The builder does not copy or publish content reached through links outside `content_dir`.
 

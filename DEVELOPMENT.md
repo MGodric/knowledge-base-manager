@@ -2,6 +2,8 @@
 
 Python (with PyYAML and markdown-it-py) powers the entire knowledge-base management CLI toolset (`kb.py`: resolve, inspect, search, read, audit, build-static, backup, verify-backup, restore). All legacy PowerShell scripts have been completely replaced with cross-platform Python. This environment provides the shared Python environment for developing and validating both the Python core and the Skill.
 
+For repository entrypoints and module relationships, see the [maintainer architecture guide](SKILL_ARCHITECTURE.md).
+
 ## Create the environment
 
 Run from the repository root. Choose an installed, user-managed Python explicitly;
@@ -81,8 +83,8 @@ Pure-Python runtime dependencies (`PyYAML 6.0.3`, `markdown-it-py 4.2.0`, `mdit-
 Vendor maintenance uses standard library only via `tools/vendor_dependencies.py`:
 - `python -X utf8 tools/vendor_dependencies.py --check`: Read-only offline verification of vendor files and manifest SHA-256 digests.
 - `python -X utf8 tools/vendor_dependencies.py --rebuild`: Deterministic offline clean extraction and manifest generation from cached wheels/sdist.
-- `python -X utf8 tools/vendor_dependencies.py --refresh`: Offline check followed by rebuild if needed.
-- `python -X utf8 tools/vendor_dependencies.py --fetch`: Download pinned packages from PyPI to local cache (maintainer-only).
+- `python -X utf8 tools/vendor_dependencies.py --refresh --source-dir <cache> --output <candidate>`: Query PyPI, fetch artifacts, and generate a candidate vendor tree (maintainer-only; uses network).
+- `python -X utf8 tools/vendor_dependencies.py --fetch --source-dir <cache>`: Download locked packages from PyPI to a local cache (maintainer-only; uses network).
 
 ## Windows sandbox boundary
 

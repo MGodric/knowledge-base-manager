@@ -1,199 +1,79 @@
 # Delegated knowledge-base writes
 
-Use one subagent as the designated editor for every write mode when subagent orchestration is available. This is a mandatory write gate: the primary agent must delegate before detailed source reading, drafting, staging, or mutation. It keeps detailed note reading and editing out of the main session while retaining authorization and verification there.
-
-If the current handoff contains `KB_EDITOR_ROLE: designated`, this agent is already the editor. It must execute the bounded write directly and must not delegate again.
+For every write mode, the primary agent must spawn one isolated designated editor before detailed source reading, drafting, staging, or mutation. If subagents are unavailable, follow [Fallback](#fallback). A handoff containing `KB_EDITOR_ROLE: designated` identifies the editor and forbids further delegation. In a Gemini dual-model task, that editor remains read-only until the primary starts the write phase after comparing both analyses.
 
 ## Division of responsibility
 
 The main agent must:
 
-1. Resolve the exact absolute knowledge-base root and remove any ambiguity before delegation.
-2. Determine the authorized operation, minimal authorized source-path list, scope, sensitive-content and publication boundary, irreversible choices, and acceptance criteria without reading all source bodies into the main context. For semantic work, carry forward the reader, purpose, important questions, and any conclusions already settled by the user or source owner. Let the editor perform bounded expert explanation and evidence analysis, refine the questions after source reading, and choose the entry decomposition. Do not preselect an exact number of entries unless the user explicitly requires that count.
-3. Spawn the editor before any knowledge entry is drafted or staged. Use an isolated handoff (`fork_turns: "none"`) unless a small recent-turn window is necessary.
-4. Send a minimal, self-contained handoff rather than the entire conversation when possible.
-5. Wait for the editor to finish, then re-read the actual modified blocks rather than accepting its summary. Check every acceptance field and claimed count, inspect its reported paths, and independently run or verify the final audit. Prefer one 120-180 second wait; inspect agent state only after a timeout or attention event instead of polling repeatedly at short intervals.
-6. Report files changed, audit result, unresolved issues, and model routing accurately. If only the requested override is observable, say `requested model/reasoning`; call it `effective` only when the runtime exposes confirmation.
-
-The confirmed absolute root must be present in every handoff; a subagent must not infer it from the parent conversation or a bare folder name.
+1. Resolve the exact absolute knowledge-base root; authorize the operation, minimal source list, sensitive-content and publication boundary, irreversible choices, and acceptance criteria. For semantic work, pass the reader, purpose, important questions, and already-settled conclusions without reading all source bodies into the main context.
+2. Spawn the editor with a minimal self-contained handoff, preferably `fork_turns: "none"`. Let it analyze authorized sources and choose the entry decomposition; do not impose an entry count unless the user did.
+3. Re-read the actual changed blocks, check acceptance fields and claims, and independently run or verify the final audit. Report changed paths, audit results, gaps, and the requested model/effort; call them effective only if the host confirms them.
 
 The designated editor must:
 
-1. Treat `KB_EDITOR_ROLE: designated` as the recursion guard and explicitly use `$knowledge-base-manager` with the exact root supplied in the handoff.
-2. Re-read source and target files before editing and apply the relevant workflow and safety reference. For semantic promotion, inventory material topics first and choose the complete set of distinct durable entries only after reading the authorized sources.
-3. Stay inside the authorized root and operation scope.
-4. Run `python -X utf8 ./scripts/kb.py audit` after writes and return a compact change manifest. For Promote and Project Synthesis, include the existing coverage ledger mapping reader questions and material source topics to actual answers, project-summary-only treatment, or a reasoned gap/deferral. Capture and mechanical writes do not require this ledger or synthesis review.
-5. Not spawn or delegate to another agent.
+1. Use `$knowledge-base-manager` with the exact root supplied in the handoff; never infer it or delegate again.
+2. Re-read sources and targets before editing, stay within the authorized scope, and apply the relevant workflow and safety rules. For semantic promotion, inventory material topics before deciding entries.
+3. After writing, run `python -X utf8 ./scripts/kb.py audit` and return changed paths, audit counts, and unresolved topics. Promote and Project Synthesis also require the coverage ledger; Capture and mechanical writes do not.
 
-Because agents share the same filesystem, the editor changes the real target files. The main agent must not recreate the same edits.
+Agents share a filesystem: only the designated editor changes the real target, and the primary does not recreate those edits.
 
 ## Additional independent review for Project Synthesis
 
-For a Project Synthesis, the main agent re-reads the editor's actual changes
-and performs the basic independent acceptance check already required above. A
-low-risk synthesis needs no second reviewer.
+The primary always re-reads the written result. Add a separate read-only reviewer for Project Synthesis with material technical conclusions, root-cause claims, substantive SOP changes, decisions, conflicts, important inferences, or safety, legal, medical, financial, or administrative-eligibility content. Low-risk synthesis needs no second reviewer; batch reviewers by substantive risk cluster.
 
-Request one additional read-only independent reviewer for material technical
-conclusions, root-cause claims, substantive SOP changes, decisions, conflicts,
-important inferences promoted from observations, or safety, legal, medical,
-financial, or administrative-eligibility content. This reviewer is not a
-designated editor: it must not edit files, expand the approved sources or
-permissions, or delegate. It reviews the stated scope, evidence boundary,
-provenance, and actual written result against the reader questions and source
-coverage. Apply [content acceptance](knowledge-writing.md#content-acceptance),
-including whether the explanation works without reconstructing it from sources,
-then return only
-`PASS`, `FIX`, or `BLOCKED` with concise reasons.
-
-The original designated editor addresses `FIX`; the main agent re-reads the
-repair and performs final acceptance. Do not impose a fixed retry count: each
-retry must address a specific reported defect or missing answer. If the main
-agent replaces the editor, changes its model route, or transfers the repair to
-another editor, it must first stop the old editor and preserve the unaccepted
-draft for inspection; never run two writers against the same target. If
-independent review is unavailable and the main agent cannot reliably perform
-the needed check, return `BLOCKED` and
-ask the user for direction. Keep the designated-editor recursion guard.
-
-For a sustainable synthesis batch, assign reviewers by distinct substantive
-risk clusters, not one reviewer per ordinary entry. The primary agent handles
-the basic check for ordinary entries. Add an independent reviewer only when a
-cluster contains a material technical conclusion, root-cause claim,
-substantive SOP change, decision, conflict, important inference, or high-risk
-subject; separate reviewers are justified only for materially different such
-clusters.
+The reviewer checks the actual result, authorized sources, provenance, reader questions, and [content acceptance](knowledge-writing.md#content-acceptance), then returns `PASS`, `FIX`, or `BLOCKED` with reasons. It cannot edit, delegate, or expand scope. The original editor addresses `FIX`; the primary re-reads the repair. Before replacing an editor, stop the old writer and preserve its draft. If review is unavailable and the primary cannot reliably check the result, return `BLOCKED` and ask for direction.
 
 ## Model and reasoning route
 
-Choose and record the requested model and reasoning effort for every editor and
-reviewer. Route by the judgment the delegated task still requires, not by a
-blanket rule for all semantic work.
+Choose the Codex or Gemini route from the actual host; model catalogs do not prove host availability. Classify the judgment still required:
 
-Use this decision boundary before spawning:
+| Class | Decision boundary |
+| --- | --- |
+| M — mechanical | Conclusion, target, and method are supplied, as in clear Capture, approved path mapping, or unambiguous repair. |
+| S — settled answer | Authorized material supplies every substantive conclusion and condition; the editor only organizes or expresses it. Do not assume unread sources settle the answer. |
+| J — knowledge judgment | The editor must derive a conclusion, explain an unestablished mechanism, synthesize sources, resolve conflicts, or set controlling conditions or evidence status. Uncertain classification is J. |
 
-- **Answer already determined:** the handoff or authorized sources provide the
-  material conclusion and its controlling conditions, and the editor only has
-  to express, organize, deduplicate, or place it. Ordinary judgment about
-  wording and entry decomposition does not make the answer unresolved.
-- **Key knowledge judgment remains:** the editor must derive a material answer,
-  explain a mechanism that is not already established, synthesize multiple
-  sources, distinguish conflicting claims, determine controlling conditions or
-  exceptions, or assign an evidence boundary or epistemic status that affects
-  the conclusion.
+The primary retains authorization, scope, privacy, publication, and acceptance decisions. Stronger models cannot fill missing source evidence. An editor finding a material conflict or missing core answer stops and returns source locators; the primary reclassifies or records the gap. Only the primary may replace an editor, after stopping the old writer.
 
-### Mechanical writes
+### Codex model route
 
-Use `gpt-5.6-luna` with `medium` reasoning by default for bounded work whose semantic decisions are already supplied:
+This registry defines **same-family order only**. Intersect it with the delegation tool's exact available IDs and supported efforts; do not infer availability, a new family's order, or cross-family rank.
 
-- capture from a clear payload;
-- initialize an exact confirmed empty root;
-- apply an approved move or rename mapping;
-- update known links mechanically;
-- run and report an audit or apply an unambiguous repair.
+| Main-session family | Low → high exact IDs |
+| --- | --- |
+| GPT-6 | `gpt-6-luna` → `gpt-6-sol` → `gpt-6-astra` |
+| GPT-5.6 compatibility | `gpt-5.6-luna` → `gpt-5.6-terra` → `gpt-5.6-sol` |
 
-Raise Luna to `high` only when the mechanical operation is unusually large or requires careful preservation.
+1. Require `medium` effort for M/S unless the user explicitly records a lower task-specific exception. J requires at least `high` and the observable main-session effort; an unknown main effort blocks J.
+2. Honor a user's task-specific exact model or effort; compute only unspecified fields and verify the combination. A stronger or cross-family choice needs the user's instruction or a recorded concrete reason. Any effort below its class floor needs an explicit user exception.
+3. First remove candidates with unsupported or unknown effort support. Without a model override, M chooses the lowest remaining same-family tier no stronger than the main model; S tries only the immediately lower tier, then the main model if that tier was removed; J uses the main model. If the selected model is ineligible, return `BLOCKED`. Never skip two tiers or silently lower J.
+4. A required independent reviewer must be at least as capable as the editor and inspect the written result; normally use the editor's exact model and effort. If that route is unavailable, return `BLOCKED` rather than silently choosing a weaker reviewer. If review needs stronger judgment, reclassify the task and recheck the cost gate.
+5. Before dispatching an editor or reviewer at the highest currently available registered tier in this family, including the main model at that tier, state the trigger, exact route, bounded scope, and extra cost (or “unknown”). Obtain task-specific consent; reuse only consent for the same task and route.
+6. Record classification, host candidates, requested route, consent, and effective values when reported. Stop on runtime rejection. If an exact override is accepted but only the request is observable, report “requested, unconfirmed.” If the host may silently change it and cannot reveal the actual route, return `BLOCKED` before writing.
 
-### Semantic organization
+Unknown main ID, unreviewed family, missing availability, or unsupported effort blocks automatic routing. An explicit cross-family route still needs a comparable J capability and adequate review. Never use `latest` aliases. This policy applies to this Skill, not all Codex tasks.
 
-When the answer is already determined and the sources are clear, route ordinary
-promotion, deduplication, taxonomy, and explanatory organization one model tier
-below the main model by default. Choose `medium` reasoning for direct material
-and `high` only when density or preservation difficulty warrants it:
+### Gemini model route
 
-| Main model | Editor model |
-|---|---|
-| `gpt-5.6-sol` | `gpt-5.6-terra` |
-| `gpt-5.6-terra` | `gpt-5.6-luna` |
-| `gpt-5.6-luna` | `gpt-5.6-luna` |
+**Ordinary route.** Preserve the session/project's exact Gemini model and observable reasoning setting; do not change Flash versions or map Pro to another version. If neither its exact ID nor guaranteed same-model inheritance can be verified, return `BLOCKED`. Honor a user's task-specific model change after availability and quality checks; never apply the Codex registry. For a delegated model that the host identifies as its highest tier, obtain the existing task-specific cost consent. If tier metadata is absent, disclose that uncertainty and obtain cost consent rather than inferring rank from `Flash` or `Pro`.
 
-Thus a `sol` main session normally routes already-determined semantic
-organization to `terra`; use `high` reasoning only when that settled material
-is unusually dense or difficult to preserve. A simple capture still routes to
-`luna medium`.
+**Difficult-task trigger.** Ask about a dual route only for J plus at least one of: material conflict in authorized sources; a new multi-step derivation, proof, or root-cause judgment affecting the core answer; a high-impact safety, legal, medical, financial, or administrative-eligibility conclusion; or inability of the primary to check the core answer reliably. Length, formula count, or a newer Flash alone does not qualify. If discovered mid-task, stop before expanding the route.
 
-### Key knowledge judgment
+**Preflight and choice.** Verify that the host can dispatch one exact Flash ID and one exact Pro ID concurrently and, for writes, resume the same editor after analysis. The current Flash/Pro model remains its arm; choose the other from host-confirmed IDs. If the current model is neither, dual work needs a separate user-selected exact Flash/Pro model, which becomes this task's editor model; do not claim the old model was retained. Let the user choose when several IDs are available. If any prerequisite fails, report the dual route unavailable and keep the authorized single-model route.
 
-When key knowledge judgment remains, prefer the same model as the main session
-and do not use a lower model tier by default. Choose reasoning sufficient for
-the task and normally match the main session's effort. Keep the isolated
-designated-editor handoff: the editor may read the authorized sources, compare
-evidence, and produce the expert explanation without requiring the main agent
-to read every source first.
+Ask once whether to **keep the current single model** or **run Flash + Pro in parallel**. Give the D trigger, both exact IDs, shared authorized sources, read-only analysis scope, extra cost or “unknown,” and any later sole editor and post-write reviewer. Disclose highest-tier status when known; if unknown, include that uncertainty in the cost request. Only explicit consent to this task, combination, and scope starts both arms. Silence permits only unrelated read-only preparation. A single-model choice keeps existing review gates; missing mandatory review remains `BLOCKED`.
 
-The main agent still owns authorization, source and operation scope,
-sensitive-content and publication decisions, irreversible choices, and final
-acceptance. A delegated evidence analysis does not expand authorized sources or
-decide whether sensitive material may be retained or published.
+**Execution.** For a dual write, designate the task's selected-model agent with `KB_EDITOR_ROLE: designated` before detailed reading; it remains read-only through analysis. For a read-only task, neither arm is an editor. The isolated Flash and Pro arms concurrently read the same minimal sources without seeing each other's output or changing files or shared drafts. Each returns claims, source locators, reasoning, conditions, uncertainty, and proposed organization. Report failed concurrency; never describe serial work or two Flash arms as Flash + Pro parallel work.
 
-Do not assign an editor or reviewer a stronger model tier than the main session
-unless the user has authorized it or the main agent records a concrete reason.
-There is an additional cost gate for the highest model tier currently available
-in the runtime: any initial classification or later reclassification that would
-dispatch an editor or reviewer at that tier counts as an upgrade for this gate,
-including same-tier routing from a highest-tier main session. It cannot be
-treated as a routine same-tier choice. Before dispatch, the main agent must tell
-the user the trigger, requested model and reasoning effort, bounded task scope,
-and expected increase in cost. If token usage cannot be estimated
-reliably, say that it is unknown. Start that highest-tier work only after the
-user explicitly agrees; a prior explicit authorization for the same task and
-route may be reused, but general task authorization is insufficient. While
-waiting, continue only work that does not depend on the proposed upgrade. This
-does not add approval to an ordinary route that remains below that tier.
-
-If an editor discovers a material contradiction, cannot explain a mechanism
-needed for a core answer, or repeatedly misses a core reader question, it must
-stop and return the exact gap, relevant source locators, and why the current
-route is insufficient. It must not spawn a replacement. The main agent then
-reclassifies the bounded task and either re-dispatches it under these routing
-and single-writer rules or records a gap. Missing source evidence cannot be
-repaired by a stronger model and must remain an explicit gap or blocker.
-
-For a complex Project Synthesis that requires an independent reviewer, use a
-reviewer whose model tier is at least the editor's and whose reasoning effort is
-adequate for the same evidence boundary; normally use the same model and
-reasoning as the editor. The reviewer remains read-only and returns only the
-existing `PASS`, `FIX`, or `BLOCKED` result. A low-risk synthesis still needs no
-additional reviewer.
-
-For an unknown main model, use Luna for mechanical work, a lower-cost capable
-model for ordinary semantic organization whose answer is already determined,
-and the same model as the main session for key knowledge judgment. Do not treat
-all semantic work as eligible for a downgrade.
-
-Treat this routing as the skill's cost-control policy, not as an automatic Codex
-default. If a preferred override is unavailable, report that fact. For
-mechanical or already-determined organization, use the nearest suitable
-available fallback and report it. Never silently downgrade key knowledge
-judgment; obtain an authorized suitable editor route, use main-session writing
-only after the explicit fallback approval required below, or return `BLOCKED`.
+The primary checks differences against authorized sources; model agreement is not evidence, and unresolved conflicts remain visible or block the conclusion. A read-only task ends with the checked answer. In a write task, only the designated editor writes after receiving the checked comparison. Earlier analysis does not count as post-write review: if Project Synthesis needs one, a separate reviewer must inspect the result with capability at least equal to the editor's. A prior Pro analyst may later review a Flash editor; a Flash analyst does not automatically qualify to review a Pro editor. If required review is unavailable, return `BLOCKED`. The primary re-reads the files and verifies the audit. This stricter reviewer gate applies only to Gemini dual writes; the single-model review fallback above remains.
 
 ## Context isolation
 
-Prefer an isolated spawn with no inherited turns and include only:
+Prefer `fork_turns: "none"`. Give the editor `KB_EDITOR_ROLE: designated`, exact root, operation, acceptance criteria, minimal sources, allowed and forbidden paths, language/conventions, provenance fields (including `verified` and revision/version-state for formal project entries), and audit/report requirements. For semantic work, also give reader, purpose, questions, known conclusions and gaps, attachment scope, permission to refine entry decomposition, and the coverage-ledger requirement. For a synthesis batch, give its one-time metadata manifest, duplicate-body limit, and allowed parent-page updates. Pass a small recent-turn window only when a self-contained handoff would lose essential nuance.
 
-- `KB_EDITOR_ROLE: designated`;
-- exact knowledge-base root;
-- operation and acceptance criteria;
-- exact source files or a concise factual payload;
-- for semantic work, the intended reader and prior knowledge, practical or explanatory purpose, important questions, and concrete details to retain; pass known gaps and the source-reading scope, including whether referenced attachments are authorized;
-- for semantic work, permission to refine questions and determine entry decomposition after reading authorized sources rather than a parent-imposed count;
-- for a synthesis batch, the one-time metadata manifest fields, top-*k*
-  duplicate-body limit with ambiguity-only expansion, and each parent page that
-  may be updated once;
-- language and local note conventions;
-- allowed and forbidden paths;
-- required provenance fields (including literal `verified` and revision/version-state tokens for formal project-derived entries), audit command, and response fields; include the coverage ledger only for semantic work;
-- the instruction that this agent is the final editor and must not delegate.
-
-Keep durable-body requirements separate from completion-report requirements.
-A request for a short reply governs the report, not the depth of the stored
-explanation, unless the user explicitly asks for a short entry. Do not pass
-unrelated conversational brevity preferences as article constraints.
-
-The editor's completion report must name the effective model and reasoning effort when observable, otherwise the requested route and that it is unconfirmed; it must also name every changed path, audit error/warning counts, and unresolved or deliberately deferred topics. It must derive field-presence claims by re-reading the written files, not from the handoff or intended template. For semantic work, the coverage ledger locates answers for human review; the primary must inspect them. Neither a filled ledger nor structural audit success establishes content completeness.
-
-If a self-contained handoff would lose essential nuance from recent conversation, pass the smallest supported recent-turn window instead of the full history.
+A short completion report does not imply a short knowledge entry. The editor reports changed paths, audit counts, unresolved topics, and effective model/effort when observable, otherwise requested and unconfirmed. It verifies field claims by re-reading files. The primary inspects the coverage ledger and actual content; neither the ledger nor a clean audit proves completeness.
 
 ## Fallback
 
-If no subagent capability is available or spawning fails, announce that isolation cannot be applied and stop before detailed source reading or writes. Ask whether the user authorizes a main-session fallback. Only after explicit approval may the primary agent complete the bounded edit directly using the same minimal-read and audit rules. Never silently pretend delegation occurred.
+If spawning is unavailable or fails, stop before detailed source reading or writing. Explain the loss of isolation and obtain explicit user approval for a main-session fallback. Then apply the same scope and audit rules; never claim delegation occurred.

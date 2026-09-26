@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.2.0). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.2.1). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 

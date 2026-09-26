@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 - Unreleased
+## 0.2.1 - 2026-09-27
 
 - Reorganized knowledge-writing guidance around reader questions, with scenario examples and display-math conventions.
 - Updated delegated-model routing for Codex and Gemini, including an opt-in Flash and Pro comparison for difficult Gemini tasks.

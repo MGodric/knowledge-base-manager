@@ -128,6 +128,8 @@ with native SVG, CSS, and vanilla JavaScript without third-party libraries:
   graph topology invalidates only the preview digest and avoids regenerating
   unchanged graph topology or HTML files.
 
+Graph page and section previews use the same Markdown math parser as the reading page. The first eligible paragraph, list, quote, table, or display-math block is stored as text, code, and TeX segments within a 600-source-character budget; a code span containing dollar signs remains code. The browser builds these segments as safe DOM nodes and renders math with bundled KaTeX in the homepage graph, article overlay, and standalone navigation page. A failed formula renders as its source TeX, while older preview data and pre-rendered/native HTML that cannot be aligned with Markdown tokens use plain text. The `build-static` result exposes stable `preview_diagnostics` for such fallback; these diagnostics affect only the preview digest, not the graph topology digest. Reference nodes continue to show registration metadata only.
+
 ## Incremental manifest
 
 The destination contains `.kb-static-manifest.json`. Each source-page record binds its normalized source-relative path to the generated relative path and SHA-256 hashes. Asset records similarly bind each bundled KaTeX input to `_assets/katex/` and graph asset to `_assets/graph/` output. A subsequent call:

@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from typing import Any
 
@@ -31,13 +32,14 @@ if str(TEST_DIR) not in sys.path:
     sys.path.insert(0, str(TEST_DIR))
 
 from kb_core.cli import main
-from kb_core.static_build import execute_static_build
+from kb_core.static_build import create_static_markdown_parser, execute_static_build
 from kb_core.static_graph import (
     convert_to_graph_javascript,
     convert_to_graph_previews_javascript,
     get_graph_model,
     get_page_frontmatter,
     get_text_excerpt,
+    _preview_segments_from_tokens,
     update_heading_anchors,
 )
 from kb_core.static_nav import get_static_navigation_href, get_static_navigation_model
@@ -375,6 +377,15 @@ class TestStaticGraph(unittest.TestCase):
 
         self.assertIn("<code><h2>Code heading ignored</h2></code>", res.html)
 
+        inline_code_heading = update_heading_anchors(
+            "<h2>普通章节</h2><p>普通正文。</p>"
+            "<h3>支持传播定理（<code>PROVED</code>）</h3><p>证明正文。</p>",
+            owner_page_id="page:id:heading-code", source_path="article.md",
+        )
+        self.assertEqual([s.title for s in inline_code_heading.sections],
+                         ["普通章节", "支持传播定理（PROVED）"])
+        self.assertIn("<code>PROVED</code>", inline_code_heading.html)
+
     def test_frontmatter_parsing(self) -> None:
         fm_sample = (
             "---\n"
@@ -435,6 +446,187 @@ class TestStaticGraph(unittest.TestCase):
         exc_empty = get_text_excerpt(empty_html)
         self.assertEqual(exc_empty["mode"], "unavailable")
         self.assertEqual(exc_empty["text"], "")
+
+    def test_token_preview_first_block_and_budget(self) -> None:
+        parser = create_static_markdown_parser()
+        markdown = (
+            "# Title\n\n"
+            + nav_block("- [hidden](other.md)\n")
+            + "\n\n```md\nignored\n```\n\n"
+            + "- `PROVED`: $x<y$\n- `EXHAUSTIVE` and `$not_math$`\n\nLater paragraph.\n"
+        )
+        tokens = parser.parse(markdown)
+        preview = _preview_segments_from_tokens(tokens, 0, len(tokens))
+        self.assertEqual(preview["mode"], "excerpt")
+        self.assertEqual(preview["text"], "PROVED: $x<y$ EXHAUSTIVE and $not_math$")
+        self.assertEqual([s["kind"] for s in preview["segments"]],
+                         ["code", "text", "math", "text", "code", "text", "code"])
+        self.assertFalse(preview["truncated"])
+
+        for length in (599, 600, 601):
+            exc = _preview_segments_from_tokens(parser.parse("A" * length), 0, len(parser.parse("A" * length)))
+            self.assertEqual(len(exc["text"]), min(length, 600))
+            self.assertEqual(exc["truncated"], length > 600)
+        long_math = parser.parse("$" + ("x" * 601) + "$")
+        oversized = _preview_segments_from_tokens(long_math, 0, len(long_math))
+        self.assertEqual(oversized["text"], "内容较长，请打开全文")
+        self.assertTrue(oversized["truncated"])
+        edge = parser.parse("A" * 599 + " $xy$ followed")
+        boundary = _preview_segments_from_tokens(edge, 0, len(edge))
+        self.assertTrue(boundary["truncated"])
+        self.assertNotIn("xy", boundary["text"])
+
+        table = parser.parse("| A | B |\n| --- | --- |\n| one | two |\n")
+        cells = _preview_segments_from_tokens(table, 0, len(table))
+        self.assertEqual(cells["text"], "A B one two")
+
+    def test_structured_preview_mapping_and_safe_fallback(self) -> None:
+        content = os.path.join(self.test_root, "preview-kb", "content")
+        index = os.path.join(content, "index.md")
+        article = os.path.join(content, "article.md")
+        write_file(index, "# Home\n\n- [Article](article.md)\n")
+        write_file(article, (
+            "---\nid: preview-test\n---\n# Article\n\n"
+            "Intro `PROVED`: $f_x(k)$ and `EXHAUSTIVE`.\n\n"
+            "## A\n\n`PROVED`: $f_x(k)$\n\n"
+            "##### Deep\n\nDeep `$literal$` and $x+y$.\n\n"
+            "### C\n\nThird.\n"
+        ))
+        files = [index, article]
+        nav = get_static_navigation_model(
+            markdown_files=files, content_root=content, entry_source_path=index,
+        )
+        model = get_graph_model(content_root=content, navigation=nav, markdown_files=files)
+        records = {r["node_id"]: r for r in model.preview_data["records"]}
+        page = records["page:id:preview-test"]
+        self.assertEqual([s["kind"] for s in page["segments"]],
+                         ["text", "code", "text", "math", "text", "code", "text"])
+        self.assertIn("PROVED", page["text"])
+        section = records["section:page:id:preview-test#kb-heading-1"]
+        self.assertIn({"kind": "code", "text": "PROVED"}, section["segments"])
+        deep = next(r for r in records.values() if r["node_id"].startswith("section:page:id:preview-test#")
+                    and "Deep" in next(n["title"] for n in model.graph_data["nodes"] if n["id"] == r["node_id"]))
+        self.assertIn({"kind": "code", "text": "$literal$"}, deep["segments"])
+        self.assertEqual(model.preview_data["diagnostics"], [])
+
+        raw = Path(article).read_text(encoding="utf-8")
+        html_reordered = "<h2>C</h2><p>Pre-rendered `PROVED`.</p><h2>A</h2>"
+        vp = [
+            {"source": "index.md", "raw_markdown": Path(index).read_text(encoding="utf-8")},
+            {"source": "article.md", "raw_markdown": raw, "html": html_reordered},
+        ]
+        fallback = get_graph_model(content_root=content, navigation=nav, validated_pages=vp)
+        self.assertTrue(fallback.preview_data["diagnostics"])
+        self.assertTrue(all(d["code"] == "preview_text_fallback" for d in fallback.preview_data["diagnostics"]))
+        self.assertNotEqual(fallback.preview_data["preview_digest"], model.preview_data["preview_digest"])
+
+        write_file(article, (
+            "---\nid: preview-test\n---\n# Article\n\n"
+            "$$\n## Formula text\n[label](https://example.org)\n$$\n\n"
+            "## Real\n\n`PROVED` applies only here.\n"
+        ))
+        aligned = get_graph_model(content_root=content, navigation=nav, markdown_files=files)
+        section_nodes = [n for n in aligned.graph_data["nodes"] if n["kind"] == "section"]
+        self.assertEqual([n["title"] for n in section_nodes], ["Real"])
+        self.assertEqual(section_nodes[0]["target"]["fragment"], "kb-heading-1")
+        self.assertFalse(any(n["kind"] == "reference" and n["target"].get("url") == "https://example.org"
+                             for n in aligned.graph_data["nodes"]))
+        display_preview = next(r for r in aligned.preview_data["records"] if r["node_id"] == "page:id:preview-test")
+        self.assertEqual(display_preview["segments"][0]["kind"], "math")
+        self.assertTrue(display_preview["segments"][0]["display"])
+
+    def test_inline_code_heading_keeps_all_section_previews_structured(self) -> None:
+        content = os.path.join(self.test_root, "heading-code-kb", "content")
+        index = os.path.join(content, "index.md")
+        article = os.path.join(content, "knowledge", "article.md")
+        write_file(index, "# Home\n\n- [Article](knowledge/article.md)\n")
+        write_file(article, (
+            "---\nid: heading-code-test\n---\n# Article\n\n引言。\n\n"
+            "## 普通前节\n\n前节正文。\n\n"
+            "### 支持传播定理（`PROVED`）\n\n"
+            "`PROVED` 标记下，$x$、$(c,r)$ 与 $4c+r$ 均为行内公式。\n\n"
+            "## 普通后节\n\n后节正文。\n"
+        ))
+        files = [index, article]
+        nav = get_static_navigation_model(
+            markdown_files=files, content_root=content, entry_source_path=index,
+        )
+        model = get_graph_model(content_root=content, navigation=nav, markdown_files=files)
+        sections = sorted((n for n in model.graph_data["nodes"] if n["kind"] == "section"),
+                          key=lambda n: n["section"]["ordinal"])
+        self.assertEqual([n["title"] for n in sections],
+                         ["普通前节", "支持传播定理（PROVED）", "普通后节"])
+        records = {r["node_id"]: r for r in model.preview_data["records"]}
+        self.assertEqual([records[n["id"]]["mode"] for n in sections], ["excerpt"] * 3)
+        self.assertEqual([records[n["id"]]["segments"][0]["kind"] for n in sections],
+                         ["text", "code", "text"])
+        theorem = records[sections[1]["id"]]
+        self.assertEqual([s["tex"] for s in theorem["segments"] if s["kind"] == "math"],
+                         ["x", "(c,r)", "4c+r"])
+        self.assertIn("PROVED", theorem["text"])
+        self.assertFalse(any(d["source_path"] == "knowledge/article.md"
+                             for d in model.preview_data["diagnostics"]))
+
+    def test_preview_diagnostic_isolated_from_graph_digest(self) -> None:
+        content = os.path.join(self.test_root, "diagnostic-kb", "content")
+        kb_root = os.path.dirname(content)
+        write_file(os.path.join(kb_root, "kb.yaml"),
+                   "schema_version: 1\ncontent_dir: content\nentrypoint: content/index.md\n")
+        index = os.path.join(content, "index.md")
+        article = os.path.join(content, "article.md")
+        write_file(index, "# Home\n\n- [Article](article.md)\n")
+        normal = "# Article\n\nIntro.\n\n## Section\n\nPlain body.\n"
+        native = "# Article\n\nIntro.\n\n<h2>Section</h2>\n\nPlain body.\n"
+        write_file(article, normal)
+        files = [index, article]
+        nav = get_static_navigation_model(
+            markdown_files=files, content_root=content, entry_source_path=index,
+        )
+        baseline = get_graph_model(content_root=content, navigation=nav, markdown_files=files)
+        katex_assets = os.path.join(self.test_root, "diagnostic-katex")
+        make_fake_katex_assets(katex_assets)
+        destination = os.path.join(self.test_root, "diagnostic-site")
+        code1, _ = execute_static_build(kb_root, destination, katex_assets_root=katex_assets)
+        self.assertEqual(code1, 0)
+        graph_js_path = os.path.join(destination, "_assets", "graph", "graph-data.js")
+        preview_js_path = os.path.join(destination, "_assets", "graph", "graph-previews.js")
+        graph_js_before = Path(graph_js_path).read_bytes()
+        preview_js_before = Path(preview_js_path).read_bytes()
+        write_file(article, native)
+        fallback = get_graph_model(content_root=content, navigation=nav, markdown_files=files)
+        self.assertEqual(fallback.graph_data["graph_digest"], baseline.graph_data["graph_digest"])
+        self.assertNotEqual(fallback.preview_data["preview_digest"], baseline.preview_data["preview_digest"])
+        self.assertEqual(fallback.preview_data["records"], baseline.preview_data["records"])
+        self.assertEqual(baseline.preview_data["diagnostics"], [])
+        self.assertTrue(fallback.preview_data["diagnostics"])
+        self.assertEqual(fallback.preview_data["diagnostics"][0]["code"], "preview_text_fallback")
+        code2, env2 = execute_static_build(kb_root, destination, katex_assets_root=katex_assets)
+        self.assertEqual(code2, 0)
+        self.assertEqual(Path(graph_js_path).read_bytes(), graph_js_before)
+        self.assertNotEqual(Path(preview_js_path).read_bytes(), preview_js_before)
+        self.assertTrue(any(d["code"] == "preview_text_fallback" for d in env2.data["preview_diagnostics"]))
+        self.assertFalse(any(path.endswith("graph-data.js") for path in env2.data["graph_assets_generated_paths"]))
+
+    def test_preview_projection_and_fallback_failure_is_structured_blocker(self) -> None:
+        kb_root = os.path.join(self.test_root, "failed-preview-kb")
+        write_file(os.path.join(kb_root, "kb.yaml"),
+                   "schema_version: 1\ncontent_dir: content\nentrypoint: content/index.md\n")
+        write_file(os.path.join(kb_root, "content", "index.md"), "# Home\n\nA paragraph.\n")
+        katex_assets = os.path.join(self.test_root, "failed-preview-katex")
+        make_fake_katex_assets(katex_assets)
+        destination = os.path.join(self.test_root, "failed-preview-site")
+        with patch("kb_core.static_graph._preview_segments_from_tokens", side_effect=ValueError("bad token")), \
+             patch("kb_core.static_graph.get_text_excerpt", return_value={"mode": "unavailable", "text": "", "truncated": False}):
+            code, env = execute_static_build(kb_root, destination, katex_assets_root=katex_assets)
+        self.assertEqual(code, 2)
+        self.assertEqual(env.status, "blocked")
+        self.assertFalse(os.path.exists(destination))
+        diag = env.data["preview_diagnostics"][0]
+        self.assertEqual(diag["code"], "preview_projection_failed")
+        self.assertEqual(diag["severity"], "error")
+        self.assertEqual(diag["source_path"], "index.md")
+        self.assertEqual(diag["node_id"], "page:path:index.md")
+        self.assertEqual(env.diagnostics[0].code, "PREVIEW_PROJECTION_FAILED")
 
     def test_full_graph_model_extraction_and_digests(self) -> None:
         kb = os.path.join(self.test_root, "kb")
@@ -520,7 +712,7 @@ class TestStaticGraph(unittest.TestCase):
         self.assertEqual(gd["schema"], "kb-graph")
         self.assertEqual(gd["schema_version"], 1)
         self.assertEqual(pd["schema"], "kb-graph-previews")
-        self.assertEqual(pd["schema_version"], 1)
+        self.assertEqual(pd["schema_version"], 2)
 
         self.assertEqual(gd["entry_id"], "page:path:index.md")
 
@@ -794,12 +986,12 @@ class TestStaticBuild(unittest.TestCase):
 
         self.assertEqual(manifest["schema"], "knowledge-base-static-site")
         self.assertEqual(manifest["schema_version"], 1)
-        self.assertEqual(manifest["template_version"], "10")
+        self.assertEqual(manifest["template_version"], "11")
         self.assertEqual(manifest["entry_output_path"], "index.html")
         self.assertEqual(len(manifest["pages"]), 2)
         self.assertEqual(manifest["katex"]["asset_version"], "0.18.1")
         self.assertEqual(len(manifest["katex"]["assets"]), 4)
-        self.assertEqual(manifest["graph"]["asset_version"], "1.0.0")
+        self.assertEqual(manifest["graph"]["asset_version"], "1.0.1")
         self.assertTrue(re.match(r"^[0-9a-f]{64}$", manifest["graph"]["graph_digest"]))
         self.assertTrue(re.match(r"^[0-9a-f]{64}$", manifest["graph"]["preview_digest"]))
         self.assertEqual(manifest["graph"]["navigation_page"]["output_path"], "kb-navigation.html")
@@ -879,6 +1071,11 @@ class TestStaticBuild(unittest.TestCase):
             nav_page = f.read()
         self.assertIn('id="kb-nav-app"', nav_page)
         self.assertIn("mode: 'standalone'", nav_page)
+        self.assertIn('href="./_assets/katex/katex.min.css"', nav_page)
+        self.assertIn('src="./_assets/katex/katex.min.js"', nav_page)
+        self.assertIn("preview_diagnostics", env.data)
+        self.assertTrue(any(d["code"] == "preview_text_fallback" and d["source_path"] == "资料 空格/条目 中文.md"
+                            for d in env.data["preview_diagnostics"]))
 
         # Assets copied
         self.assertTrue(os.path.isfile(os.path.join(self.destination, "_assets", "graph", "graph.css")))

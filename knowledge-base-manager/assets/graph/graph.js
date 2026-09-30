@@ -1,6 +1,6 @@
 /**
  * Knowledge Base Graph - Zero-dependency Offline SVG Graph Component
- * Conforms to GraphDataV1 and PreviewDataV1 specifications.
+ * Conforms to GraphDataV1 and PreviewDataV2, with safe V1 fallback.
  * Supports 'inline', 'overlay', and 'standalone' modes.
  */
 (function (global) {
@@ -34,6 +34,7 @@
       openArticle: '在新标签页打开全文阅读 →',
       openExternal: '访问外部链接 ↗',
       dialogEyebrow: '节点预览',
+      excerptEyebrow: '首块摘录',
       dialogClose: '关闭 ×',
       dialogFocus: '🎯 聚焦此节点与连接',
       dialogExitFocus: '退出聚焦模式',
@@ -94,6 +95,7 @@
       openArticle: 'Read Full Article in New Tab →',
       openExternal: 'Visit External Link ↗',
       dialogEyebrow: 'Node Preview',
+      excerptEyebrow: 'First-block excerpt',
       dialogClose: 'Close ×',
       dialogFocus: '🎯 Focus Node & Connections',
       dialogExitFocus: 'Exit Focus Mode',
@@ -1296,7 +1298,35 @@
         record = previews.records.find(r => (n.preview_key && r.key === n.preview_key) || r.node_id === n.id);
       }
 
-      if (record && record.text) {
+      dialogEyebrow.textContent = record && record.mode === 'excerpt' ? t.excerptEyebrow : t.dialogEyebrow;
+
+      const safeSegments = record && record.mode === 'excerpt' && previews.schema_version === 2 &&
+        Array.isArray(record.segments) && record.segments.length > 0 &&
+        record.segments.every(s => s && typeof s === 'object' && (
+          ((s.kind === 'text' || s.kind === 'code') && typeof s.text === 'string') ||
+          (s.kind === 'math' && typeof s.tex === 'string' && typeof s.display === 'boolean')
+        ));
+
+      if (safeSegments) {
+        const p = document.createElement('p');
+        p.className = 'kb-graph-preview-segments';
+        for (const segment of record.segments) {
+          const span = document.createElement(segment.kind === 'code' ? 'code' : 'span');
+          if (segment.kind === 'math') {
+            span.className = segment.display ? 'kb-graph-preview-math-display' : 'kb-graph-preview-math-inline';
+            try {
+              if (typeof window === 'undefined' || !window.katex || typeof window.katex.render !== 'function') throw new Error('KaTeX unavailable');
+              window.katex.render(segment.tex, span, { displayMode: segment.display, throwOnError: true, trust: false });
+            } catch (_) {
+              span.textContent = (segment.display ? '$$' : '$') + segment.tex + (segment.display ? '$$' : '$');
+            }
+          } else {
+            span.textContent = segment.text;
+          }
+          p.appendChild(span);
+        }
+        dialogContent.appendChild(p);
+      } else if (record && record.text) {
         const paragraphs = String(record.text).split(/\r?\n\r?\n/);
         for (const para of paragraphs) {
           if (para.trim()) {
@@ -1304,12 +1334,6 @@
             p.textContent = para.trim();
             dialogContent.appendChild(p);
           }
-        }
-        if (record.truncated) {
-          const hint = document.createElement('p');
-          hint.className = 'kb-graph-preview-hint';
-          hint.textContent = t.truncatedNotice;
-          dialogContent.appendChild(hint);
         }
       } else {
         const emptyMsg = document.createElement('p');
@@ -1319,6 +1343,12 @@
           emptyMsg.textContent = t.noPreviewNotice;
         }
         dialogContent.appendChild(emptyMsg);
+      }
+      if (record && record.truncated && (safeSegments || record.text)) {
+        const hint = document.createElement('p');
+        hint.className = 'kb-graph-preview-hint';
+        hint.textContent = t.truncatedNotice;
+        dialogContent.appendChild(hint);
       }
 
       // Add full navigation link

@@ -16,9 +16,8 @@ import urllib.parse
 import uuid
 from typing import Any
 
-from markdown_it import MarkdownIt
-
 from .paths import get_canonical_path, test_path_inside_root
+from .static_markdown import create_static_markdown_parser
 
 
 @dataclass
@@ -60,6 +59,16 @@ class GraphModelResult:
 
     def __getitem__(self, item: str) -> Any:
         return getattr(self, item)
+
+
+class PreviewProjectionError(ValueError):
+    """A preview could neither be projected nor safely reduced to text."""
+
+    def __init__(self, source_path: str, node_id: str, message: str) -> None:
+        super().__init__(f"BLOCKER: {message} for {source_path}")
+        self.source_path = source_path
+        self.node_id = node_id
+        self.preview_message = message
 
 
 def get_page_frontmatter(text: str) -> dict[str, Any]:
@@ -144,6 +153,11 @@ def update_heading_anchors(
         code_tokens.append(match.group(0))
         return f"<!-- {token_prefix}{idx} -->"
 
+    def restore_code(fragment: str) -> str:
+        for idx, code_val in enumerate(code_tokens):
+            fragment = fragment.replace(f"<!-- {token_prefix}{idx} -->", code_val)
+        return fragment
+
     masked_html = re.sub(r"(?is)<(pre|code)\b[^>]*>.*?</\1>", mask_code, html_text)
 
     heading_regex = r"(?is)<h(?P<level>[2-6])(?P<attrs>\b[^>]*)>(?P<content>.*?)</h(?P=level)>"
@@ -215,7 +229,9 @@ def update_heading_anchors(
 
         sb.append(f"<h{lvl}{new_attrs}>{content}</h{lvl}>")
 
-        plain_title = html.unescape(re.sub(r"<[^>]+>", "", content)).strip()
+        # The masked heading is needed for safe heading detection, but its
+        # visible title must include any inline code before stripping tags.
+        plain_title = html.unescape(re.sub(r"<[^>]+>", "", restore_code(content))).strip()
         sec_node_id = (
             f"section:{owner_page_id}#{final_id}" if owner_page_id else f"section:#{final_id}"
         )
@@ -230,6 +246,7 @@ def update_heading_anchors(
             heading_matches[i + 1].start() if i + 1 < len(heading_matches) else len(masked_html)
         )
         sec_html_slice = masked_html[content_start : max(content_start, content_end)]
+        sec_html_slice = restore_code(sec_html_slice)
 
         sections.append(
             SectionInfo(
@@ -247,8 +264,7 @@ def update_heading_anchors(
     sb.append(masked_html[last_index:])
     reconstructed = "".join(sb)
 
-    for i, code_val in enumerate(code_tokens):
-        reconstructed = reconstructed.replace(f"<!-- {token_prefix}{i} -->", code_val)
+    reconstructed = restore_code(reconstructed)
 
     return AnchorResult(
         html=reconstructed,
@@ -290,6 +306,149 @@ def get_text_excerpt(html_text: str, max_length: int = 600) -> dict[str, Any]:
         "text": "",
         "truncated": False,
     }
+
+
+def _preview_title(markdown_parser: Any, inline_token: Any) -> str:
+    rendered = markdown_parser.renderInline(inline_token.content)
+    return html.unescape(re.sub(r"<[^>]+>", "", rendered)).strip()
+
+
+def _preview_sections(markdown_parser: Any, tokens: list[Any], sections: list[SectionInfo]) -> list[tuple[int, int]] | None:
+    """Map every rendered h2-h6 to its unfiltered Markdown token ordinal."""
+    headings: list[tuple[int, int, str]] = []
+    for idx, token in enumerate(tokens):
+        if token.type == "heading_open" and token.tag in {"h2", "h3", "h4", "h5", "h6"}:
+            if idx + 2 >= len(tokens) or tokens[idx + 1].type != "inline":
+                return None
+            headings.append((idx, int(token.tag[1]), _preview_title(markdown_parser, tokens[idx + 1])))
+    if len(headings) != len(sections):
+        return None
+    if any(level != sec.heading_level or title != sec.title for (_, level, title), sec in zip(headings, sections)):
+        return None
+    return [
+        (idx + 3, headings[ordinal + 1][0] if ordinal + 1 < len(headings) else len(tokens))
+        for ordinal, (idx, _, _) in enumerate(headings)
+    ]
+
+
+def _preview_segments_from_tokens(tokens: list[Any], start: int, end: int) -> dict[str, Any]:
+    """Project the first eligible outer block, retaining code and math atoms."""
+    chosen: tuple[int, int] | None = None
+    outer_types = {"paragraph_open", "bullet_list_open", "ordered_list_open", "blockquote_open", "table_open"}
+    idx = start
+    in_nav = False
+    while idx < end:
+        token = tokens[idx]
+        if token.type in {"html_block", "html_inline"}:
+            if "<!-- kb-nav:children:start -->" in token.content:
+                in_nav = True
+            if "<!-- kb-nav:children:end -->" in token.content:
+                in_nav = False
+            idx += 1
+            continue
+        if in_nav:
+            idx += 1
+            continue
+        if token.type == "math_block":
+            chosen = (idx, idx + 1)
+            break
+        if token.type in outer_types:
+            depth = 1
+            last = idx + 1
+            while last < end and depth:
+                depth += tokens[last].nesting
+                last += 1
+            if depth:
+                raise ValueError("unclosed preview block")
+            chosen = (idx, last)
+            break
+        idx += 1
+
+    if chosen is None:
+        return {"mode": "unavailable", "text": "", "segments": [], "truncated": False}
+
+    raw: list[dict[str, Any]] = []
+    def add_text(value: str) -> None:
+        if value:
+            if raw and raw[-1]["kind"] == "text":
+                raw[-1]["text"] += value
+            else:
+                raw.append({"kind": "text", "text": value})
+
+    for token in tokens[chosen[0]:chosen[1]]:
+        if token.type == "math_block":
+            raw.append({"kind": "math", "tex": token.content.strip(), "display": True})
+        elif token.type == "inline":
+            in_script = False
+            for child in token.children or []:
+                if child.type == "html_inline":
+                    if re.search(r"(?i)<\s*(script|style)\b", child.content):
+                        in_script = True
+                    elif re.search(r"(?i)<\s*/\s*(script|style)\s*>", child.content):
+                        in_script = False
+                    elif re.search(r"(?i)<br\s*/?>", child.content):
+                        add_text(" ")
+                elif in_script:
+                    continue
+                elif child.type == "text":
+                    add_text(child.content)
+                elif child.type == "code_inline":
+                    raw.append({"kind": "code", "text": child.content})
+                elif child.type == "math_inline":
+                    raw.append({"kind": "math", "tex": child.content, "display": False})
+                elif child.type in {"softbreak", "hardbreak"}:
+                    add_text(" ")
+        elif token.type in {"list_item_close", "tr_close", "td_close", "th_close", "paragraph_close", "blockquote_close"}:
+            add_text(" ")
+
+    normalized: list[dict[str, Any]] = []
+    for segment in raw:
+        if segment["kind"] == "text":
+            value = re.sub(r"\s+", " ", segment["text"])
+            if not normalized:
+                value = value.lstrip()
+            if value:
+                if normalized and normalized[-1]["kind"] == "text":
+                    normalized[-1]["text"] += value
+                else:
+                    normalized.append({"kind": "text", "text": value})
+        else:
+            normalized.append(segment)
+    if normalized and normalized[-1]["kind"] == "text":
+        normalized[-1]["text"] = normalized[-1]["text"].rstrip()
+        if not normalized[-1]["text"]:
+            normalized.pop()
+
+    budget = 600
+    visible: list[dict[str, Any]] = []
+    truncated = False
+    for segment in normalized:
+        content = segment.get("tex", segment.get("text", ""))
+        length = len(content)
+        if length <= budget:
+            visible.append(segment)
+            budget -= length
+        elif segment["kind"] == "text":
+            if budget:
+                visible.append({"kind": "text", "text": content[:budget]})
+            truncated = True
+            break
+        else:
+            truncated = True
+            break
+    if truncated and not visible:
+        visible = [{"kind": "text", "text": "内容较长，请打开全文"}]
+    elif truncated and visible and visible[-1]["kind"] == "text":
+        visible[-1]["text"] = visible[-1]["text"].rstrip()
+        if not visible[-1]["text"]:
+            visible.pop()
+        if not visible:
+            visible = [{"kind": "text", "text": "内容较长，请打开全文"}]
+    text = "".join(
+        ("$$" if seg["display"] else "$") + seg["tex"] + ("$$" if seg["display"] else "$")
+        if seg["kind"] == "math" else seg["text"] for seg in visible
+    )
+    return {"mode": "excerpt" if visible else "unavailable", "text": text, "segments": visible, "truncated": truncated}
 
 
 def _sha256_hex(text: str) -> str:
@@ -425,26 +584,24 @@ def get_graph_model(
     page_fragments: dict[str, set[str]] = {}
 
     rendered_page_map: dict[str, Any] = {}
-    md_renderer = MarkdownIt("commonmark", {"html": True})
-    md_renderer.validateLink = lambda url: not bool(
-        re.match(r"^(javascript|vbscript):", url.strip().lower())
-    )
+    md_renderer = create_static_markdown_parser()
+    preview_diagnostics: list[dict[str, Any]] = []
 
     for p in pages_list:
         source = p["source"]
         page_node_id = page_node_ids[source]
         fm = p["frontmatter"]
 
+        text = p["raw_markdown"]
+        if text.startswith("---"):
+            front_match = re.match(
+                r"\A---\s*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)", text
+            )
+            if front_match:
+                text = text[front_match.end() :]
         if p["prerendered_html"] is not None:
             raw_html = p["prerendered_html"]
         else:
-            text = p["raw_markdown"]
-            if text.startswith("---"):
-                front_match = re.match(
-                    r"\A---\s*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)", text
-                )
-                if front_match:
-                    text = text[front_match.end() :]
             raw_html = md_renderer.render(text) if text.strip() else ""
 
         anchor_result = update_heading_anchors(
@@ -454,6 +611,52 @@ def get_graph_model(
         sections = anchor_result.sections
         if anchor_result.diagnostics:
             diagnostics.extend(anchor_result.diagnostics)
+
+        preview_tokens = None
+        section_ranges = None
+        preview_fallback_reason = None
+        if p["prerendered_html"] is not None:
+            preview_fallback_reason = "pre-rendered HTML cannot be aligned with Markdown tokens"
+        elif re.search(r"(?is)<h[2-6]\b", text):
+            preview_fallback_reason = "native HTML heading prevents reliable section alignment"
+        elif re.search(r"(?is)<(p|ul|ol|blockquote|table)\b", text):
+            preview_fallback_reason = "native HTML content prevents reliable first-block extraction"
+        else:
+            try:
+                preview_tokens = md_renderer.parse(text)
+                section_ranges = _preview_sections(md_renderer, preview_tokens, sections)
+                if section_ranges is None:
+                    preview_fallback_reason = "rendered headings do not match Markdown heading tokens"
+            except Exception as exc:
+                preview_fallback_reason = f"Markdown token projection failed ({type(exc).__name__})"
+
+        def make_preview(node_id: str, html_content: str, token_range: tuple[int, int] | None) -> dict[str, Any]:
+            reason = preview_fallback_reason
+            if reason is None and preview_tokens is not None and token_range is not None:
+                try:
+                    return _preview_segments_from_tokens(preview_tokens, *token_range)
+                except Exception as exc:
+                    reason = f"Markdown token projection failed ({type(exc).__name__})"
+            elif reason is None:
+                reason = "Markdown token range unavailable"
+            try:
+                fallback = get_text_excerpt(html_content, max_length=600)
+                fallback["segments"] = ([{"kind": "text", "text": fallback["text"]}]
+                                        if fallback["mode"] == "excerpt" else [])
+            except Exception as exc:
+                raise PreviewProjectionError(source, node_id, f"preview text fallback failed ({type(exc).__name__})") from exc
+            if (reason.startswith("Markdown token projection failed")
+                    and fallback["mode"] == "unavailable"
+                    and re.search(r"(?i)<(p|ul|ol|blockquote|table|div)\b", html_content)):
+                raise PreviewProjectionError(source, node_id, "preview projection and text fallback failed")
+            preview_diagnostics.append({
+                "code": "preview_text_fallback",
+                "severity": "warning",
+                "source_path": source,
+                "node_id": node_id,
+                "message": reason,
+            })
+            return fallback
 
         frag_set = {sec.fragment for sec in sections}
         page_fragments[source] = frag_set
@@ -491,7 +694,7 @@ def get_graph_model(
         }
         nodes[page_node_id] = page_node
 
-        page_excerpt = get_text_excerpt(unified_html, max_length=600)
+        page_excerpt = make_preview(page_node_id, unified_html, (0, len(preview_tokens)) if preview_tokens is not None else None)
         page_origin = "rendered-body" if page_excerpt["mode"] == "excerpt" else "none"
 
         preview_records[page_node_id] = {
@@ -499,6 +702,7 @@ def get_graph_model(
             "node_id": page_node_id,
             "mode": page_excerpt["mode"],
             "text": page_excerpt["text"],
+            "segments": page_excerpt["segments"],
             "truncated": page_excerpt["truncated"],
             "origin": page_origin,
         }
@@ -533,7 +737,10 @@ def get_graph_model(
             }
             nodes[sec_node_id] = sec_node
 
-            sec_excerpt = get_text_excerpt(sec.html_content, max_length=600)
+            sec_excerpt = make_preview(
+                sec_node_id, sec.html_content,
+                section_ranges[sec.ordinal] if section_ranges is not None else None,
+            )
             sec_origin = "rendered-body" if sec_excerpt["mode"] == "excerpt" else "none"
 
             preview_records[sec_node_id] = {
@@ -541,6 +748,7 @@ def get_graph_model(
                 "node_id": sec_node_id,
                 "mode": sec_excerpt["mode"],
                 "text": sec_excerpt["text"],
+                "segments": sec_excerpt["segments"],
                 "truncated": sec_excerpt["truncated"],
                 "origin": sec_origin,
             }
@@ -1061,6 +1269,10 @@ def get_graph_model(
     sorted_preview_records = sorted(
         preview_records.values(), key=lambda r: str(r["node_id"])
     )
+    sorted_preview_diagnostics = sorted(
+        preview_diagnostics,
+        key=lambda d: (d["source_path"], d["node_id"], d["code"], d["message"]),
+    )
 
     digest_payload = {
         "schema": "kb-graph",
@@ -1087,9 +1299,10 @@ def get_graph_model(
 
     preview_digest_payload = {
         "schema": "kb-graph-previews",
-        "schema_version": 1,
+        "schema_version": 2,
         "graph_digest": graph_digest,
         "records": sorted_preview_records,
+        "diagnostics": sorted_preview_diagnostics,
     }
     preview_serialized_for_digest = json.dumps(
         preview_digest_payload, ensure_ascii=False, separators=(",", ":")
@@ -1098,10 +1311,11 @@ def get_graph_model(
 
     preview_data = {
         "schema": "kb-graph-previews",
-        "schema_version": 1,
+        "schema_version": 2,
         "preview_digest": preview_digest,
         "graph_digest": graph_digest,
         "records": sorted_preview_records,
+        "diagnostics": sorted_preview_diagnostics,
     }
 
     return GraphModelResult(

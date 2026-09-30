@@ -16,12 +16,6 @@ import shutil
 import urllib.parse
 from typing import Any
 
-from markdown_it import MarkdownIt
-from mdit_py_plugins.dollarmath import dollarmath_plugin
-from mdit_py_plugins.footnote import footnote_plugin
-from mdit_py_plugins.tasklists import tasklists_plugin
-
-from .markdown_reader import patch_dollarmath_block_rule
 from .model import Diagnostic, Envelope
 from .paths import (
     assert_no_redirecting_reparse_point,
@@ -31,19 +25,21 @@ from .paths import (
     test_path_inside_root,
 )
 from .static_graph import (
+    PreviewProjectionError,
     convert_to_graph_javascript,
     convert_to_graph_previews_javascript,
     get_graph_model,
     update_heading_anchors,
 )
 from .static_nav import get_static_navigation_href, get_static_navigation_model
+from .static_markdown import create_static_markdown_parser
 from .yaml_reader import read_yaml_fields
 
 GENERATOR_VERSION = "1.2.0"
-TEMPLATE_VERSION = "10"
+TEMPLATE_VERSION = "11"
 MANIFEST_NAME = ".kb-static-manifest.json"
 KATEX_ASSET_VERSION = "0.18.1"
-GRAPH_ASSET_VERSION = "1.0.0"
+GRAPH_ASSET_VERSION = "1.0.1"
 
 ALERT_TYPES = {
     "note": "Note",
@@ -80,107 +76,6 @@ def transform_github_alerts(html_text: str) -> str:
         )
 
     return pattern.sub(replace_alert, html_text)
-
-
-def create_static_markdown_parser() -> MarkdownIt:
-    """Create and configure markdown-it-py parser tailored for static HTML generation."""
-    md = (
-        MarkdownIt("commonmark", {"html": True})
-        .enable("table")
-        .enable("strikethrough")
-        .use(footnote_plugin)
-        .use(
-            dollarmath_plugin,
-            allow_labels=False,
-            allow_space=True,
-            allow_digits=True,
-            allow_blank_lines=True,
-            double_inline=False,
-        )
-        .use(tasklists_plugin)
-    )
-    patch_dollarmath_block_rule(md, allow_labels=False, allow_blank_lines=True)
-
-    md.validateLink = lambda url: not bool(
-        re.match(r"^(javascript|vbscript):", url.strip().lower())
-    )
-
-    # Format table alignment with semicolon for Markdig compliance
-    orig_th_open = md.renderer.rules.get("th_open")
-
-    def render_th_open(self, tokens, idx, options, env):
-        token = tokens[idx]
-        style = token.attrGet("style")
-        if style:
-            style = re.sub(r"text-align:\s*(\w+)", r"text-align: \1;", style)
-            token.attrSet("style", style)
-        if orig_th_open:
-            return orig_th_open(self, tokens, idx, options, env)
-        return self.renderToken(tokens, idx, options, env)
-
-    orig_td_open = md.renderer.rules.get("td_open")
-
-    def render_td_open(self, tokens, idx, options, env):
-        token = tokens[idx]
-        style = token.attrGet("style")
-        if style:
-            style = re.sub(r"text-align:\s*(\w+)", r"text-align: \1;", style)
-            token.attrSet("style", style)
-        if orig_td_open:
-            return orig_td_open(self, tokens, idx, options, env)
-        return self.renderToken(tokens, idx, options, env)
-
-    md.add_render_rule("th_open", render_th_open)
-    md.add_render_rule("td_open", render_td_open)
-
-    # Wrap tables in responsive scroll container
-    orig_table_open = md.renderer.rules.get("table_open")
-    orig_table_close = md.renderer.rules.get("table_close")
-
-    def render_table_open(self, tokens, idx, options, env):
-        base = orig_table_open(self, tokens, idx, options, env) if orig_table_open else self.renderToken(tokens, idx, options, env)
-        return f'<div class="kb-table-wrap">{base}'
-
-    def render_table_close(self, tokens, idx, options, env):
-        base = orig_table_close(self, tokens, idx, options, env) if orig_table_close else self.renderToken(tokens, idx, options, env)
-        return f'{base}</div>'
-
-    md.add_render_rule("table_open", render_table_open)
-    md.add_render_rule("table_close", render_table_close)
-
-    # <del> for strikethrough
-    md.add_render_rule("s_open", lambda self, tokens, idx, options, env: "<del>")
-    md.add_render_rule("s_close", lambda self, tokens, idx, options, env: "</del>")
-
-    # Math formatting for KaTeX auto-render
-    def render_math_inline(self, tokens, idx, options, env):
-        return f'<span class="math">\\({tokens[idx].content}\\)</span>'
-
-    def render_math_block(self, tokens, idx, options, env):
-        return f'<div class="math">\\[\n{tokens[idx].content}\n\\]</div>\n'
-
-    md.add_render_rule("math_inline", render_math_inline)
-    md.add_render_rule("math_block", render_math_block)
-
-    # Footnote formatting matching tests
-    def render_footnote_ref(self, tokens, idx, options, env):
-        ident = tokens[idx].meta["id"] + 1
-        sub_id = tokens[idx].meta["subId"]
-        id_str = f"fnref{ident}" + (f":{sub_id}" if sub_id > 0 else "")
-        fn_id = f"fn{ident}"
-        return f'<a class="footnote-ref" id="{id_str}" href="#{fn_id}"><sup>{ident}</sup></a>'
-
-    def render_footnote_block_open(self, tokens, idx, options, env):
-        return '<div class="footnotes">\n<hr class="footnotes-sep">\n<ol class="footnotes-list">\n'
-
-    def render_footnote_block_close(self, tokens, idx, options, env):
-        return "</ol>\n</div>\n"
-
-    md.add_render_rule("footnote_ref", render_footnote_ref)
-    md.add_render_rule("footnote_block_open", render_footnote_block_open)
-    md.add_render_rule("footnote_block_close", render_footnote_block_close)
-
-    return md
 
 
 def get_kb_static_relative_path(base: str, path: str) -> str:
@@ -708,6 +603,7 @@ def new_kb_static_navigation_page_html() -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>知识库全景导航</title>
+<link rel="stylesheet" href="./_assets/katex/katex.min.css">
 <link rel="stylesheet" href="./_assets/graph/graph.css">
 <style>
 * { box-sizing: border-box; }
@@ -734,6 +630,7 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
     }
 })();
 </script>
+<script defer src="./_assets/katex/katex.min.js"></script>
 <script defer src="./_assets/graph/graph-data.js"></script>
 <script defer src="./_assets/graph/graph-previews.js"></script>
 <script defer src="./_assets/graph/graph.js"></script>
@@ -1619,19 +1516,27 @@ def execute_static_build(
             "graph_assets_generated_paths": graph_asset_generated,
             "graph_assets_skipped": len(graph_asset_skipped),
             "graph_assets_skipped_paths": graph_asset_skipped,
+            "preview_diagnostics": graph_model.preview_data["diagnostics"],
         }
         return 0, Envelope(command="build-static", status="success", root=root_full, data=data)
 
     except Exception as exc:
         msg = str(exc)
+        preview_diagnostics = ([{
+            "code": "preview_projection_failed",
+            "severity": "error",
+            "source_path": exc.source_path,
+            "node_id": exc.node_id,
+            "message": exc.preview_message,
+        }] if isinstance(exc, PreviewProjectionError) else [])
         return 2, Envelope(
             command="build-static",
             status="blocked",
             root=root_full,
-            data={"status": "blocked", "message": msg},
+            data={"status": "blocked", "message": msg, "preview_diagnostics": preview_diagnostics},
             diagnostics=[
                 Diagnostic(
-                    code="BUILD_BLOCKED",
+                    code="PREVIEW_PROJECTION_FAILED" if preview_diagnostics else "BUILD_BLOCKED",
                     severity="error",
                     file=None,
                     span=None,

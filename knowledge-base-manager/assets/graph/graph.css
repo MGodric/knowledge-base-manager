@@ -481,6 +481,21 @@
   margin: 0 0 12px;
 }
 
+.kb-graph-preview-segments code {
+  padding: .08em .3em;
+  border-radius: 3px;
+  background: #edf3f8;
+  color: #334d62;
+}
+
+.kb-graph-preview-math-display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: .25em 0;
+}
+
 .kb-graph-dialog-content a {
   color: var(--kb-graph-accent);
   text-decoration: none;

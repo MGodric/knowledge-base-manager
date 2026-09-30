@@ -665,6 +665,49 @@ closeDialogBtn.click();
 assert.ok(!dialog.open, 'Dialog must be closed after clicking close button');
 console.log('  [PASS] Preview dialog opened and closed cleanly with safe textContent.');
 
+// Structured V2 segments render only known types; KaTeX is called once per math atom.
+const katexCalls = [];
+mockWindow.katex = {
+  render(tex, element, options) {
+    katexCalls.push({ tex, options });
+    element.textContent = `rendered:${tex}`;
+  }
+};
+mockPreviewData.schema_version = 2;
+mockPreviewData.records[0].segments = [
+  { kind: 'code', text: 'PROVED' },
+  { kind: 'text', text: ': <img onerror=alert(1)> ' },
+  { kind: 'math', tex: 'x<y', display: false },
+  { kind: 'text', text: ' ' },
+  { kind: 'math', tex: '\\badcommand', display: true }
+];
+previewBtn.click();
+assert.ok(dialog.open, 'V2 preview dialog reopened');
+assert.ok(dialogContent.querySelector('code'), 'V2 code segment was selected');
+assert.equal(katexCalls.length, 2, 'Both math atoms rendered separately');
+assert.equal(katexCalls[0].options.trust, false, 'Untrusted TeX remains disabled');
+assert.equal(katexCalls[1].options.displayMode, true, 'Display math uses display mode');
+assert.equal(dialog.querySelector('.kb-graph-dialog-eyebrow').textContent, '首块摘录');
+assert.ok(dialogContent.querySelector('code'), 'Code has its own DOM node');
+assert.ok(dialogContent.textContent.includes('<img onerror=alert(1)>'), 'Dangerous text remains literal');
+closeDialogBtn.click();
+
+mockWindow.katex.render = () => { throw new Error('invalid TeX'); };
+previewBtn.click();
+assert.ok(dialogContent.textContent.includes('$x<y$'), 'One failed math atom falls back to source text');
+assert.ok(dialogContent.textContent.includes('$$\\badcommand$$'), 'Failed display math is intact');
+closeDialogBtn.click();
+
+delete mockWindow.katex;
+mockPreviewData.records[0].segments = [{ kind: 'unknown', html: '<script>alert(1)</script>' }];
+previewBtn.click();
+assert.ok(dialogContent.textContent.includes('这是双父共享页面'), 'Unknown segment safely falls back to V1 text');
+assert.ok(!dialogContent.textContent.includes('<script>alert(1)</script>'));
+closeDialogBtn.click();
+mockPreviewData.schema_version = 1;
+delete mockPreviewData.records[0].segments;
+console.log('  [PASS] V2 code/math rendering, per-atom fallback, and invalid-segment compatibility verified.');
+
 // =========================================================================
 // 7. Overlay Mode & Esc Key Handling
 // =========================================================================

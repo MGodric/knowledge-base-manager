@@ -4,7 +4,7 @@
 
 Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Antigravity) to maintain a durable, cross-project personal knowledge base. Using standard plain-text Markdown as the sole source of truth with no proprietary database requirements, it captures, promotes, and audits knowledge across development projects, and generates a standalone static reading website with an offline interactive relationship graph.
 
-> **Status:** Public preview (v0.2.1). Knowledge-base and portable-backup manifest schemas are version `1`.
+> **Status:** Public preview (v0.2.2). Knowledge-base and portable-backup manifest schemas are version `1`.
 
 ---
 
@@ -27,7 +27,7 @@ Knowledge Base Manager is a skill designed for AI coding assistants (Codex / Ant
   - Run `python knowledge-base-manager/scripts/kb.py audit --root <knowledge-base-path>` to detect broken links, missing metadata, path containment escapes, duplicate IDs, and cloud synchronization conflict files.
 - **Static Site & Relationship Graph**
   - **Offline Static Reader**: Open HTML files directly in a browser without running a local web server. Includes responsive layout, offline KaTeX math rendering, table of contents navigation, code copying, curated collection hierarchy with nested lists, and a homepage Inbox header button with an offline pre-rendered count badge.
-  - **Interactive 2D Relationship Graph**: Zero-dependency native SVG and CSS implementation with draft and archive isolation. Provides homepage embedding, reading-page overlay modals, and a standalone navigation page. Supports branch expanding/collapsing, 1-hop ego-network focus, and offline bilingual (EN/ZH) interface.
+  - **Interactive 2D Relationship Graph**: Native SVG and CSS implementation with draft and archive isolation. Provides homepage embedding, reading-page overlay modals, and a standalone navigation page. Supports branch expanding/collapsing, 1-hop ego-network focus, and offline bilingual (EN/ZH) interface. Node previews retain inline code labels and render formulas offline with bundled KaTeX.
 - **Portable Backup & Restore**
   - **`ReferenceComplete` Backup**: Archives the knowledge base alongside explicitly registered external source files with SHA-256 checksums.
   - **Plan & Confirm Workflow**: Read-only planning produces a deterministic file list and digest; execution requires confirmation with drift detection.
@@ -95,7 +95,7 @@ Use $knowledge-base-manager to verify <backup bundle path> and restore it to the
 | Cross-project synthesis | Supported | Explicitly triggered with evidence tracking and review records. |
 | Deterministic audit | Supported | Scans broken links, orphaned entries, and format/path violations. |
 | Static HTML reading site | Supported | Responsive layout, KaTeX math, responsive TOC, code copy. |
-| Offline 2D relationship graph | Supported | Inline embedding, overlay modal, ego-focus, bilingual controls. |
+| Offline 2D relationship graph | Supported | Inline embedding, overlay modal, ego-focus, bilingual controls, and math-aware node previews. |
 | ReferenceComplete backup & restore | Supported | SHA-256 verification, anti-drift confirmation, external sources. |
 | Usage feedback (Anchor / Trigger) | Supported | Event-triggered workflow recording; no background daemon or quality claims. |
 | Antigravity native integration | Planned | Direct adapter for Antigravity skills, rules, and workflows. |

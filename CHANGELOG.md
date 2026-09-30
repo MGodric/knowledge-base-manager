@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.2 - Unreleased
+## 0.2.2 - 2026-10-01
 
 - Fixed graph previews so section titles retain inline code labels such as `PROVED` and excerpt formulas render offline with KaTeX.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 - Unreleased
+
+- Fixed graph previews so section titles retain inline code labels such as `PROVED` and excerpt formulas render offline with KaTeX.
+
 ## 0.2.1 - 2026-09-27
 
 - Reorganized knowledge-writing guidance around reader questions, with scenario examples and display-math conventions.
